@@ -2,15 +2,19 @@ import threading
 import socket
 import random
 import typing
+import json
+
+
+from Server import ServerController
 
 class WebServerController:
     """Controls the web server, including both 
     the socket server for communicating with the client 
     and the flask server to serve GUI."""
-    def __init__(self) -> None:
+    def __init__(self, server_callback : ServerController) -> None:
         """Constructor"""
 
-        self.__socket_server : SocketServer = SocketServer()
+        self.__socket_server : SocketServer = SocketServer(server_callback)
 
     def start(self) -> None:
         """Start both servers."""
@@ -23,9 +27,12 @@ class SocketServer:
     SERVER_PORT = 1234
     PROTOCOL_VERSION = "1.0"
 
-    def __init__(self) -> None:
+    def __init__(self, server_callback : ServerController) -> None:
         """Constructor"""
+        self.__server_callback : ServerController = server_callback
+
         self.__client_connections : typing.Dict[str, socket.socket] = {}
+
 
         self.__init_socket()
 
@@ -134,8 +141,39 @@ class SocketServer:
         Takes in data and uuid.
         Calls back to Server.ServerController to process request.
         Returns a list of json replies to be sent."""
-        print(data)
-        return ["{'action':'reply','text':'world'}"]
+        try:
 
+            json_data : json.JSONDecoder = json.loads(data)
+
+            command : str = json_data["command"]
+
+            response : typing.List[str] = []
+
+            match (command):
+                case "GetPosts":
+                    posts : str = self.__server_callback.get_posts()
+                    response_json : dict = {
+                        "command":"PostDataResponse",
+                        "data":posts
+                    }
+                    response.append(json.dumps(response_json))
+
+                case "AddPost":
+                    post : str = json_data["data"]
+                    self.__server_callback.add_post(post)
+
+                    response_json : dict = {
+                        "command":"AddPostResponse",
+                        "success":True
+                    }
+
+                    response.append(json.dumps(response_json))
+
+            return response
+
+
+        except Exception as e:
+            print(e)
+            return ["{'error':'Malformed request'}"]
 
     

@@ -9,9 +9,29 @@ handshake_reply = client_socket.recv(1024)
 
 print(handshake_reply)
 
-# send hello world to server
+# get messages
 
-client_socket.send(b"hello")
+client_socket.send(b'{"command":"GetPosts"}')
+
+response = client_socket.recv(1024)
+
+print(response)
+
+
+# add message
+
+msg = input("Enter message: ")
+
+client_socket.send(b'{"command":"AddPost","data":"'+msg.encode()+b'"}')
+
+response = client_socket.recv(1024)
+
+print(response)
+
+
+# get messages
+
+client_socket.send(b'{"command":"GetPosts"}')
 
 response = client_socket.recv(1024)
 

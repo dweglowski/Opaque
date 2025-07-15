@@ -40,7 +40,7 @@ class SocketServer:
 
     def __init_socket(self) -> None:
         """Initialise the socket server."""
-        self.__server_socket = socket.socket()
+        self.__server_socket : socket.socket = socket.socket()
         self.__server_socket.bind((self.SERVER_IP, self.SERVER_PORT))
         self.__server_socket.listen(1)
 
@@ -104,7 +104,7 @@ class SocketServer:
             # return a UUID
             uuid : str = self.__generate_uuid()
 
-            client.send(uuid.encode())
+            client.send(("Success " + uuid).encode())
             
             # Valid handshake completed
             return True, uuid

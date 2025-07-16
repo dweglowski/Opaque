@@ -1,3 +1,4 @@
-Hello
-Hello there
-How are you?
+{"from":"User1", "to": "@all", "content":"hello"}
+{"from":"User2", "to": "@all", "content":"hello user 1"}
+{"from":"User1", "to": "@User2", "content":"hi user 2"}
+{"from": "TestUser", "to": "@all", "content": "test"}

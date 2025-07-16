@@ -1,12 +1,16 @@
 import socket
 import json
+import typing
+
+# Define custom type hints
+from ClientUtils import TYPE_POST, TYPE_POSTS
 
 
 class SocketAPI:
     """Websocket connection to the server."""
     SERVER_IP = "localhost"
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.0"
+    PROTOCOL_VERSION = "1.1"
 
     def __init__(self) -> None:
         pass
@@ -36,11 +40,19 @@ class SocketAPI:
             # Successful handshake, obtain UUID
             self.uuid = handshake_reply_str.split(" ")[1]
 
-    def get_posts(self) -> str:
+    def get_posts(self, username : str) -> TYPE_POSTS:
         """Request all posts from the server."""
         
+         # compose request json
+        request_json : dict = {
+                        "command":"GetPosts",
+                        "username": username
+                    }
+        
+        request = json.dumps(request_json).encode()
+
         # send request
-        self.client_socket.send(b'{"command":"GetPosts"}')
+        self.client_socket.send(request)
 
         # await response
         response : str = self.client_socket.recv(1024)
@@ -48,11 +60,11 @@ class SocketAPI:
         # decode response and extract posts
         response_json : json.JSONDecoder = json.loads(response)
 
-        posts : str = response_json["data"]
+        posts : TYPE_POSTS = response_json["data"]
 
         return posts
 
-    def add_post(self, post : str) -> None:
+    def add_post(self, post : TYPE_POST) -> None:
         """Sends a new post to the server."""
 
         # compose request json

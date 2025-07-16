@@ -5,7 +5,12 @@ import typing
 import json
 
 
+
+
+# Define custom type hints
+from ServerUtils import TYPE_POST, TYPE_POSTS
 from Server import ServerController
+
 
 class WebServerController:
     """Controls the web server, including both 
@@ -25,7 +30,7 @@ class SocketServer:
 
     SERVER_IP = "localhost"
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.0"
+    PROTOCOL_VERSION = "1.1"
 
     def __init__(self, server_callback : ServerController) -> None:
         """Constructor"""
@@ -151,7 +156,8 @@ class SocketServer:
 
             match (command):
                 case "GetPosts":
-                    posts : str = self.__server_callback.get_posts()
+                    username : str = json_data["username"] # TODO: validate username when auth system introduced to fix IDOR
+                    posts : TYPE_POSTS = self.__server_callback.get_posts_for_user(username)
                     response_json : dict = {
                         "command":"PostDataResponse",
                         "data":posts
@@ -159,7 +165,7 @@ class SocketServer:
                     response.append(json.dumps(response_json))
 
                 case "AddPost":
-                    post : str = json_data["data"]
+                    post : TYPE_POST = json_data["data"]
                     self.__server_callback.add_post(post)
 
                     response_json : dict = {
@@ -174,6 +180,6 @@ class SocketServer:
 
         except Exception as e:
             print(e)
-            return ["{'error':'Malformed request'}"]
+            return ['{"error":"Malformed request"}']
 
     

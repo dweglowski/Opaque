@@ -1,5 +1,12 @@
 import ClientCLI
 import ClientAPI
+import typing
+
+# Define custom type hints
+from ClientUtils import TYPE_POST, TYPE_POSTS
+
+
+
 
 class Client:
     """Controls all the client logic"""
@@ -29,11 +36,15 @@ class Client:
                 pass
 
     def __read_posts(self) -> None:
-        posts : str = self.api.get_posts()
+        username = "TestUser" # Temp, will implement in stage 4
+        posts : TYPE_POSTS = self.api.get_posts(username)
         self.cli.display_posts(posts)
 
     def __write_post(self) -> None:
-        post : str = self.cli.get_new_post_content()
+        users_to : str = self.cli.get_new_post_to()
+        post_content : str = self.cli.get_new_post_content()
+        username = "TestUser" # Temp, will implement in stage 4
+        post : TYPE_POST = {"from" : username, "to" : users_to, "content" : post_content}
         self.api.add_post(post)
 
     def __quit(self) -> None:

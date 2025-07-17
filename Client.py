@@ -17,10 +17,9 @@ class Client:
     def cli_mainloop(self) -> None:
         """The main loop running used for the cli"""
 
-        print("Connecting...")
         self.api.connect()
-        print("Connected")
-        print("\n\n")
+
+        self.__set_username()
 
         while 1:
             action : str = self.cli.get_action()
@@ -35,16 +34,18 @@ class Client:
             else:
                 pass
 
+    def __set_username(self) -> None:
+        username : str = self.cli.get_username()
+        self.api.set_username(username)
+
     def __read_posts(self) -> None:
-        username = "TestUser" # Temp, will implement in stage 4
-        posts : TYPE_POSTS = self.api.get_posts(username)
+        posts : TYPE_POSTS = self.api.get_posts()
         self.cli.display_posts(posts)
 
     def __write_post(self) -> None:
         users_to : str = self.cli.get_new_post_to()
         post_content : str = self.cli.get_new_post_content()
-        username = "TestUser" # Temp, will implement in stage 4
-        post : TYPE_POST = {"from" : username, "to" : users_to, "content" : post_content}
+        post : TYPE_POST = {"to" : users_to, "content" : post_content}
         self.api.add_post(post)
 
     def __quit(self) -> None:

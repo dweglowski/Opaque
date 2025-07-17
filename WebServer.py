@@ -1,6 +1,5 @@
 import threading
 import socket
-import random
 import typing
 import json
 
@@ -30,7 +29,12 @@ class SocketServer:
 
     SERVER_IP = "localhost"
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.1"
+    PROTOCOL_VERSION = "1.2"
+
+
+    RESPONSE_UNAUTHENTICATED_ERROR : str = json.dumps({"error":"Unauthenticated request"})
+
+
 
     def __init__(self, server_callback : ServerController) -> None:
         """Constructor"""
@@ -75,22 +79,19 @@ class SocketServer:
 
             # add the client to list of connected clients
             self.__client_connections[uuid] = client_socket
+            self.__server_callback.add_new_connected_user(uuid)
 
             # start listening to the client in another thread
             threading.Thread(target=self.__handle_client_socket, args=(uuid,)).start()
 
             print("Successfull connection from" , addr, "with uuid:",uuid)
 
-    def __generate_uuid(self) -> str:
-        """Generate a random UUID to identify each connection."""
-        return str(random.randint(0,1000000000000))
-
     def __process_handshake(self, client : socket.socket) -> tuple[bool, str | None]:
         """Processes the handshake with the client. 
         Returns whether the handshake was succesful and the UUID of the connection.
         Handshake:
         C: {Protocol verison}
-        S: Success {UUID}
+        S: Success {Client secret}
         """
 
         data : bytes = client.recv(1024)
@@ -107,8 +108,9 @@ class SocketServer:
                 return False, None
             
             # return a UUID
-            uuid : str = self.__generate_uuid()
+            uuid : str = self.__server_callback.generate_uuid()
 
+            # TODO send client secret not uuid
             client.send(("Success " + uuid).encode())
             
             # Valid handshake completed
@@ -129,57 +131,130 @@ class SocketServer:
             data : bytes = client.recv(buffer_size)
 
             if not data:
-                continue
+                # Connection closed
+                break
 
             jsons : str = data.decode()
 
-            responces : typing.List[str] = self.__handle_client_request(jsons, uuid)
+            responce : str = self.__handle_client_request(jsons, uuid)
 
-            responce : str
+            client.send(responce.encode())
 
-            for responce in responces:
-                client.send(responce.encode())
+        self.__handle_client_disconnect(uuid)
+
+    def __handle_client_disconnect(self, uuid : str) -> None:
+        """Logic called when a client disconnects."""
+
+        client : socket.socket = self.__client_connections[uuid]
+        client.close()
+
+        self.__client_connections.pop(uuid)
+        self.__server_callback.remove_connected_user(uuid)
+
+    def __validate_authed_user(self, uuid : str, client_secret : str) -> bool:
+        """Used to ensure that the client is authenticated under their respective uuid."""
+        # TODO: change to keeping uuid private and checking client secret matches stored data about uuid
+        if client_secret == uuid:
+            return True
+        else:
+            return False
+
+    def __handle_get_posts(self, json_data : typing.Dict, uuid : str) -> str:
+        """Logic to handle a 'get posts' request from the client"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_authed_user(uuid, client_secret):
+            return self.RESPONSE_UNAUTHENTICATED_ERROR
+
+        username : str = self.__server_callback.get_username(uuid)
+
+        posts : TYPE_POSTS = self.__server_callback.get_posts_for_user(username)
+        response_json : dict = {
+            "command":"PostDataResponse",
+            "data":posts
+        }
+
+        return json.dumps(response_json)
+    
+
+    def __handle_add_post(self, json_data : typing.Dict, uuid : str) -> str:
+        """Logic to handle a 'add post' request from the client"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_authed_user(uuid, client_secret):
+            return self.RESPONSE_UNAUTHENTICATED_ERROR
+
+        username : str = self.__server_callback.get_username(uuid)
+
+        post : TYPE_POST = json_data["data"]
+        self.__server_callback.add_post(post, username)
+
+        response_json : dict = {
+            "command":"AddPostResponse",
+            "success":True
+        }
+
+        return json.dumps(response_json)
+    
+
+    def __handle_set_username(self, json_data : typing.Dict, uuid : str) -> str:
+        """Logic to handle a 'set username' request from the client"""
+
+        # TODO: replace with auth system
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_authed_user(uuid, client_secret):
+            return self.RESPONSE_UNAUTHENTICATED_ERROR
 
 
-    def __handle_client_request(self, data : str, uuid : str) -> typing.List[str]:
+        username : str = json_data["username"]
+
+        self.__server_callback.set_username(username, uuid)
+
+        response_json : dict = {
+            "command":"SetUsernameResponse",
+            "success":True
+        }
+
+        return json.dumps(response_json)
+
+
+    def __handle_client_request(self, data : str, uuid : str) -> str:
         """Handles a single request from a client.
         Takes in data and uuid.
         Calls back to Server.ServerController to process request.
-        Returns a list of json replies to be sent."""
+        Returns a json reply."""
+
+        
         try:
 
             json_data : json.JSONDecoder = json.loads(data)
 
             command : str = json_data["command"]
 
-            response : typing.List[str] = []
+            response : str = ""
 
             match (command):
                 case "GetPosts":
-                    username : str = json_data["username"] # TODO: validate username when auth system introduced to fix IDOR
-                    posts : TYPE_POSTS = self.__server_callback.get_posts_for_user(username)
-                    response_json : dict = {
-                        "command":"PostDataResponse",
-                        "data":posts
-                    }
-                    response.append(json.dumps(response_json))
+                    
+                    response = self.__handle_get_posts(json_data, uuid)
 
                 case "AddPost":
-                    post : TYPE_POST = json_data["data"]
-                    self.__server_callback.add_post(post)
+                    
+                    response = self.__handle_add_post(json_data, uuid)
 
-                    response_json : dict = {
-                        "command":"AddPostResponse",
-                        "success":True
-                    }
-
-                    response.append(json.dumps(response_json))
+                case "SetUsername":
+                    
+                    response = self.__handle_set_username(json_data, uuid)
 
             return response
 
 
         except Exception as e:
             print(e)
-            return ['{"error":"Malformed request"}']
+            return '{"error":"Malformed request"}'
 
     

@@ -2,7 +2,7 @@ import threading
 import socket
 import typing
 import json
-
+from flask import Flask
 
 
 
@@ -19,10 +19,54 @@ class WebServerController:
         """Constructor"""
 
         self.__socket_server : SocketServer = SocketServer(server_callback)
+        self.__webserver : GuiWebserver = GuiWebserver()
 
     def start(self) -> None:
         """Start both servers."""
         self.__socket_server.start_listening()
+        self.__webserver.start()
+
+
+class GuiWebserver:
+    """Flask webserver to host the client facing website files."""
+
+    HOST = "127.0.0.1"
+    PORT = 5000
+
+    def __init__(self) -> None:
+        pass
+
+    def start(self) -> None:
+        threading.Thread(target=self.__start_threaded).start()
+        
+    def __start_threaded(self) -> None:
+        self.app = Flask(__name__)
+        self.__define_endpoints()
+        
+        # TODO: switch to waitress before deploying anywhere beyond localhost
+        assert self.HOST == "127.0.0.1", "Do not deploy flask server publicly with current config"
+        self.app.run(host=self.HOST, port=self.PORT)
+        #from waitress import serve
+        # serve(self.app, host=self.HOST, port=self.PORT)
+
+    def __add_endpoint(self, path : str, handler_function : typing.Callable, methods : typing.List[str] = ["Get"]) -> None:
+        """Declares a new endpoint to flask and provides handler function."""
+        self.app.add_url_rule(
+            path, 
+            view_func=handler_function, 
+            methods=methods
+        )
+
+    def __define_endpoints(self) -> None:
+        """Defines all the web endpoints and provides their handler functions."""
+
+        self.__add_endpoint("/", self.__hello)
+
+
+    def __hello(self):
+        return 'Hello, World!'
+
+
     
 class SocketServer:
     """Direct socket stream connections to the client."""

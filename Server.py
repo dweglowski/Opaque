@@ -64,6 +64,8 @@ class ServerController:
         self.__uuid_session_storage.pop(uuid)
         self.__active_connection_uuids.remove(uuid)
 
+        print(self.__active_connection_uuids,self.__uuid_session_storage)
+
 
     def set_username(self, username : str, uuid : str) -> None:
         """Sets a client's username in session storage."""

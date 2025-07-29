@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>
+            Social media app
+        </title>
+        <script type="module" src="{{url_for ('static',filename='js/API.js')}}"></script> 
+        <script type="module" src="{{url_for ('static',filename='js/UI.js')}}"></script> 
+        <script type="module" src="{{url_for ('static',filename='js/Main.js')}}"></script> 
+    </head>
+
+
+    <body>
+        <center>
+            <h1>Social media app</h1>
+            <h3>Posts:</h3>
+            <div id="PostContainter">
+
+            </div>
+        </center>
+        <div style="position: absolute; bottom: 0;">
+            <textarea id="NewPost" placeholder="Enter new post" style="width:90vw"></textarea>
+            <button id="SendPost">Send</button>
+        </div>
+        <div id="LoginPopup" style="position: absolute; width:50%; height:20%; top:40%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;">
+            <h2>Enter username:</h2>
+            <input type="text" id="Username" placeholder="Username"></input>
+            <button id="LoginSend">Go</button>
+        </div>
+    </body>
+
+</html>

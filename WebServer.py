@@ -276,7 +276,7 @@ class WebsocketServer:
 
         client_secret : str = json_data["csec"]
         
-        if not self.__validate_authed_user(self.__uuid, client_secret):
+        if not self.__validate_authed_user(client_secret):
             return self.RESPONSE_UNAUTHENTICATED_ERROR
 
         username : str = self.__server_callback.get_username(self.__uuid)
@@ -284,7 +284,7 @@ class WebsocketServer:
         posts : TYPE_POSTS = self.__server_callback.get_posts_for_user(username)
         response_json : dict = {
             "action":"result",
-            "command":"PostData",
+            "command":"GetPosts",
             "data":posts,
         }
 
@@ -302,7 +302,14 @@ class WebsocketServer:
         username : str = self.__server_callback.get_username(self.__uuid)
 
         post : TYPE_POST = json_data["data"]
-        self.__server_callback.add_post(post, username)
+
+        # reduce risk of json injection
+        sanitised_post : TYPE_POST = {
+            "to": post["to"],
+            "content": post["content"], 
+            }
+
+        self.__server_callback.add_post(sanitised_post, username)
 
         response_json : dict = {
             "action":"result",

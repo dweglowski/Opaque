@@ -3,3 +3,4 @@
 {"from":"User1", "to": "@User2", "content":"hi user 2"}
 {"from": "TestUser", "to": "@all", "content": "test"}
 {"to": "@test", "content": "Hello test user", "from": "Daniel"}
+{"to": "@all", "content": "hello all", "from": "test"}

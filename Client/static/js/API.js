@@ -8,12 +8,17 @@ class SocketAPI {
     SERVER_PORT = 1234
     PROTOCOL_VERSION = "1.3"
 
+    #client_controller_callback;
+
     #socket;
     #socket_connected = false;
 
     #client_secret;
 
-    constructor(){
+    
+    constructor(client_controller_callback){
+        this.#client_controller_callback = client_controller_callback;
+
         this.#init_socket_connection();
     }
 
@@ -60,27 +65,37 @@ class SocketAPI {
             // successful handshake, obtain client secret
             this.#client_secret = handshake_reply["client_secret"];
             this.#socket_connected = true;
-            console.log(handshake_reply);
         }
 
     }
+
+
+
+
 
     #handle_response(data){
 
         var json = JSON.parse(data);
 
         var action = json["action"];
-
+        
         if (action == "handshake"){
             this.#complete_handshake(json);
         }
         else if (action == "result"){
 
             var command = json["command"];
-
+            
             switch (command){
                 case "SetUsername":
                     console.log("Username set!!!!!");
+                    break;
+                case "GetPosts":
+                    var posts = json["data"];
+                    this.#client_controller_callback.update_posts(posts);
+                    break;
+                case "AddPost":
+                    this.#client_controller_callback.get_posts();
                     break;
             }
         }
@@ -102,74 +117,31 @@ class SocketAPI {
 
     }
 
+    /** Sends a get posts request to the server. */
+    get_posts(){
+
+        var request_json = {
+            "action":"command",
+            "command":"GetPosts",
+            "csec":this.#client_secret,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+
+    }
+
+    /** Sends an add post request to the server. */
+    add_post(content, to){
+
+        var request_json = {
+            "action":"command",
+            "command":"AddPost",
+            "csec":this.#client_secret,
+            "data":{"to": to, "content": content},
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+
+    }
+
 }
-
-
-
-
-/*
-
-import socket
-import json
-import typing
-
-# Define custom type hints
-from ClientUtils import TYPE_POST, TYPE_POSTS
-
-
-class SocketAPI:
-    """Websocket connection to the server."""
-    SERVER_IP = "localhost"
-    SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.2"
-
-
-    
-
-    def get_posts(self) -> TYPE_POSTS:
-        """Request all posts from the server."""
-        
-         # compose request json
-        request_json : dict = {
-                        "command":"GetPosts",
-                        "csec": self.client_secret
-                    }
-        
-        request = json.dumps(request_json).encode()
-
-        # send request
-        self.client_socket.send(request)
-
-        # await response
-        response : str = self.client_socket.recv(1024)
-
-        # decode response and extract posts
-        response_json : json.JSONDecoder = json.loads(response)
-
-        posts : TYPE_POSTS = response_json["data"]
-
-        return posts
-
-    def add_post(self, post : TYPE_POST) -> None:
-        """Sends a new post to the server."""
-
-        # compose request json
-        request_json : dict = {
-                        "command":"AddPost",
-                        "csec":self.client_secret,
-                        "data":post
-                    }
-        
-        request = json.dumps(request_json).encode()
-
-        # send request
-        self.client_socket.send(request)
-
-        # await confirmation
-        response = self.client_socket.recv(1024)
-
-    def close(self) -> None:
-        """Terminates the server connection."""
-        self.client_socket.close()
-
-*/

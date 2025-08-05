@@ -4,3 +4,7 @@
 {"from": "TestUser", "to": "@all", "content": "test"}
 {"to": "@test", "content": "Hello test user", "from": "Daniel"}
 {"to": "@all", "content": "hello all", "from": "test"}
+{"to": "@all", "content": "hi", "from": "hello"}
+{"to": "@all", "content": "hello there", "from": "hello"}
+{"to": "@all", "content": "hi how are you", "from": "test"}
+{"to": "@test", "content": "hello test user, you should have received this instantly", "from": "hello"}

@@ -21,6 +21,9 @@ class ServerController:
         # storage for information about each session such as auth state and username etc.
         self.__uuid_session_storage : typing.Dict[str, typing.Dict[str, str | float | int | bool ]] = {}
 
+        # storage for users subscribed to posts feed and their "send post to client" callback
+        self.__post_feed_subscribers : typing.Dict[str, typing.Callable[[TYPE_POST], None]] = {}
+
 
     def __init_web_server(self) -> None:
         """Initialise the webserver and all logic that should be done to achive this."""
@@ -63,6 +66,7 @@ class ServerController:
 
         self.__uuid_session_storage.pop(uuid)
         self.__active_connection_uuids.remove(uuid)
+        self.__post_feed_subscribers.pop(uuid)
 
         print(self.__active_connection_uuids,self.__uuid_session_storage)
 
@@ -82,27 +86,57 @@ class ServerController:
         """Gets and returns all posts from database."""
         return self.__database.get_posts()
     
-    def get_posts_for_user(self, username : str) -> TYPE_POSTS:
-        """Gets and returns all posts that have a specific username in the TO field."""
+    def subscribe_client_to_posts_feed(self, uuid : str, send_post_to_client_callback : typing.Callable[[TYPE_POST], None]) -> None:
+        """Subscribes a client to a posts feed to recieve event update messages for each new post."""
+        self.__post_feed_subscribers[uuid] = send_post_to_client_callback
+
+    def __validate_post_is_for_client(self, post : TYPE_POST, uuid : str) -> None:
+
+        client_username : str = self.get_username(uuid)
+
+        users_to : str = ""
+        if post["to"] == "@all" or client_username in post["to"].split("@"):
+            return True
+        
+        return False
+    
+    def send_existing_posts_to_client(self, uuid : str) -> str:
+        """Sends all relevant existing posts to a client"""
         all_posts : TYPE_POSTS = self.get_posts()
-        valid_posts : TYPE_POSTS = []
+        
+        send_post_to_client_callback : typing.Callable[[TYPE_POST], None] = self.__post_feed_subscribers[uuid]
 
         for post in all_posts:
             # only posts that are shared with user
-            if post["to"] == "@all" or username in post["to"].split("@"):
-                valid_posts.append(post)
-        
-        return valid_posts
+            if self.__validate_post_is_for_client(post, uuid):
+                send_post_to_client_callback(post)
+    
+
+    def __send_new_post_to_relevant_users(self, post : TYPE_POST) -> None:
+        """Sends a newly added post to all relevant active clients."""
+        uuid : str
+        send_post_to_client_callback : typing.Callable[[TYPE_POST], None]
+
+        for uuid in self.__post_feed_subscribers:
+
+            if not self.__validate_post_is_for_client(post, uuid):
+                continue
+
+            # new post marked for this client, send update to client
+            send_post_to_client_callback = self.__post_feed_subscribers[uuid]
+            send_post_to_client_callback(post)
+
+
 
     def add_post(self, post : TYPE_POST, username : str) -> None:
         """Adds a new post to the database."""
 
-        # TODO: sanitise post
-
         post["from"] = username
 
-        return self.__database.add_post(post)
+        self.__database.add_post(post)
     
+        # ensure all clients recive this message
+        self.__send_new_post_to_relevant_users(post)
     
 
 if __name__ == "__main__":

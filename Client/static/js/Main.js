@@ -29,16 +29,18 @@ class Client {
         this.#signed_in=true;
 
         this.#ui.show_main_page();
+
+        this.subsribe_to_posts();
     }
 
     /** Initiate getting posts */
-    get_posts(){
-        this.#api.get_posts();
+    subsribe_to_posts(){
+        this.#api.subscribe_to_posts();
     }
     
-    /** Update posts once recived from server */
-    update_posts(posts){
-        this.#ui.update_posts(posts);
+    /** Displays a newly recived post once recived from server */
+    handle_recived_post(post){
+        this.#ui.display_new_post(post);
     }
 
     /** Initiate getting posts */

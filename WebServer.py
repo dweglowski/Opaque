@@ -81,7 +81,7 @@ class WebsocketServerController:
 
     SERVER_IP = "localhost"
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.3"
+    PROTOCOL_VERSION = "1.4"
 
 
 
@@ -271,24 +271,38 @@ class WebsocketServer:
         else:
             return False
    
-    def __handle_get_posts(self, json_data : typing.Dict) -> None:
-        """Logic to handle a 'get posts' request from the client"""
+    def send_post_to_client(self, post : TYPE_POST) -> None:
+        """Sends an update to the client containing another post."""
+        
+        response_json : dict = {
+            "action":"update",
+            "feed":"Posts",
+            "data":post,
+        }
+
+        self.__send_response(json.dumps(response_json))
+
+
+    def __handle_subscribe_to_posts(self, json_data : typing.Dict) -> None:
+        """Logic to handle subscribing to posts"""
 
         client_secret : str = json_data["csec"]
         
         if not self.__validate_authed_user(client_secret):
             return self.RESPONSE_UNAUTHENTICATED_ERROR
 
-        username : str = self.__server_callback.get_username(self.__uuid)
+        self.__server_callback.subscribe_client_to_posts_feed(self.__uuid, self.send_post_to_client)
 
-        posts : TYPE_POSTS = self.__server_callback.get_posts_for_user(username)
         response_json : dict = {
-            "action":"result",
-            "command":"GetPosts",
-            "data":posts,
+            "action":"subscribe",
+            "feed":"Posts",
+            "success":True,
         }
 
         self.__send_response(json.dumps(response_json))
+
+        # catch up on all existing posts
+        self.__server_callback.send_existing_posts_to_client(self.__uuid)
         
 
     def __handle_add_post(self, json_data : typing.Dict) -> None:
@@ -359,9 +373,6 @@ class WebsocketServer:
                 command : str = json_data["command"]
 
                 match (command):
-                    case "GetPosts":
-                        
-                        self.__handle_get_posts(json_data)
 
                     case "AddPost":
                         
@@ -370,6 +381,14 @@ class WebsocketServer:
                     case "SetUsername":
                         
                         self.__handle_set_username(json_data)
+
+            elif action == "subscribe":
+
+                feed : str = json_data["feed"]
+
+                match (feed):
+                    case "Posts":
+                        self.__handle_subscribe_to_posts(json_data)
 
         except Exception as e:
             print(e)

@@ -11,7 +11,6 @@ class UI {
     #login_username_field;
     #login_send;
 
-    #refresh_posts_btn;
     #posts_container;
 
     #new_post_field;
@@ -48,27 +47,19 @@ class UI {
 
         this.#posts_container = document.getElementById("PostsContainer");
 
-        this.#refresh_posts_btn = document.getElementById("RefreshPosts");
-        this.#refresh_posts_btn.addEventListener("click", this.#refresh_posts.bind(this)); // bind used to preserve "this"
+    }
+
+
+    display_new_post(post){
         
+        var user_from = post["from"];
+        var users_to = post["to"];
+        var content = post["content"];
+        this.#display_post(user_from, users_to, content);
 
-        this.#refresh_posts();
 
-    }
-
-    #refresh_posts(){
-        this.#client_controller_callback.get_posts();
-    }
-
-    update_posts(posts){
-        this.#posts_container.innerHTML="";
-        posts.forEach(post => {
-            var user_from = post["from"];
-            var users_to = post["to"];
-            var content = post["content"];
-            this.#display_post(user_from, users_to, content);
-            
-        });
+        this.#posts_container.scrollTop = this.#posts_container.scrollHeight;
+    
     }
 
     #display_post(from, to, content){

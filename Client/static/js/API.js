@@ -6,7 +6,7 @@ class SocketAPI {
 
     SERVER_IP = "localhost";
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.3"
+    PROTOCOL_VERSION = "1.4"
 
     #client_controller_callback;
 
@@ -83,12 +83,12 @@ class SocketAPI {
             this.#complete_handshake(json);
         }
         else if (action == "result"){
-
+            
             var command = json["command"];
             
             switch (command){
                 case "SetUsername":
-                    console.log("Username set!!!!!");
+                    console.log("Username set!");
                     break;
                 case "GetPosts":
                     var posts = json["data"];
@@ -97,9 +97,27 @@ class SocketAPI {
                 case "AddPost":
                     this.#client_controller_callback.get_posts();
                     break;
+                }
+            }
+        else if (action == "subscribe"){
+            
+            var feed = json["feed"];
+            
+            switch (command){
+                case "Posts":
+                    console.log("Subscribed to posts!!!")
+                    break;
+                }
+            }
+        else if (action == "update"){
+
+            var feed = json["feed"];
+                
+            if (feed == "Posts"){
+                var post = json["data"];
+                this.#client_controller_callback.handle_recived_post(post);
             }
         }
-
     }
 
 
@@ -117,12 +135,12 @@ class SocketAPI {
 
     }
 
-    /** Sends a get posts request to the server. */
-    get_posts(){
+    /** Subscribes to recive update messages with new posts. */
+    subscribe_to_posts(){
 
         var request_json = {
-            "action":"command",
-            "command":"GetPosts",
+            "action":"subscribe",
+            "feed":"Posts",
             "csec":this.#client_secret,
         };
 

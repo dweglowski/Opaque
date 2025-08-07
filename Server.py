@@ -37,6 +37,9 @@ class ServerController:
         """Starts the server running."""
         self.__webserver.start()
         input("Press enter to stop..\n")
+        self.__database.close()
+        print("Safe to kill process")
+        exit()
 
 
     def generate_uuid(self) -> str:

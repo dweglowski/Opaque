@@ -85,14 +85,55 @@ class SocketAPI {
         else if (action == "result"){
             
             var command = json["command"];
+
+            var success = false;
             
             switch (command){
-                case "SetUsername":
-                    console.log("Username set!");
+                case "Login":
+                    success = json["success"];
+                    if (success){
+                        this.#client_controller_callback.login_success();
+                    }
+                    else {
+                        var reason = json["reason"];
+                        if (reason == "InvalidUsername"){
+                            this.#client_controller_callback.login_failed("DoesntExist");
+                        }
+                        else {
+                            this.#client_controller_callback.login_failed("Generic");
+                        }
+                    }
+
                     break;
-                case "GetPosts":
-                    var posts = json["data"];
-                    this.#client_controller_callback.update_posts(posts);
+                case "Signup":
+                    success = json["success"];
+                    if (success){
+                        this.#client_controller_callback.signup_success();
+                    }
+                    else {
+                        var reason = json["reason"];
+                        if (reason == "InvalidUsername"){
+                            this.#client_controller_callback.signup_failed("NotUnique");
+                        }
+                        else {
+                            this.#client_controller_callback.signup_failed("Generic");
+                        }
+                    }
+
+                    break;
+                case "GetProfileInfo":
+                    var data = json["data"];
+                    var username = data["username"]
+                    var display_name = data["displayname"]
+                    this.#client_controller_callback.recived_profile_info(username, display_name);
+                    break;
+                case "UserSearch":
+                    success = json["success"];
+                    if (success){
+                        var data = json["data"];
+                        this.#client_controller_callback.user_search_result(data);
+
+                    }
                     break;
                 case "AddPost":
                     this.#client_controller_callback.get_posts();
@@ -121,16 +162,58 @@ class SocketAPI {
     }
 
 
-    /** Sends a username change request to the server. */
-    set_username(username){
+    /** Sends a login request to the server. */
+    login(username){
 
         var request_json = {
             "action":"command",
-            "command":"SetUsername",
+            "command":"Login",
             "csec":this.#client_secret,
             "username":username,
         };
 
+        this.#send_data(JSON.stringify(request_json))
+
+    }
+
+    /** Sends a signup request to the server. */
+    signup(username, display_name){
+
+        var request_json = {
+            "action":"command",
+            "command":"Signup",
+            "csec":this.#client_secret,
+            "username":username,
+            "displayname":display_name,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+
+    }
+
+    /** Request profile info from the server. */
+    get_profile_info(){
+
+        var request_json = {
+            "action":"command",
+            "command":"GetProfileInfo",
+            "csec":this.#client_secret,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+        
+    }
+    
+    /** Start a user search. */
+    user_search(username){
+        
+        var request_json = {
+            "action":"command",
+            "command":"UserSearch",
+            "csec":this.#client_secret,
+            "username": username,
+        };
+    
         this.#send_data(JSON.stringify(request_json))
 
     }

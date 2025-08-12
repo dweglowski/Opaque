@@ -3,6 +3,7 @@ import Database
 import typing
 import random
 import time
+import re
 
 # Define custom type hints
 from ServerUtils import TYPE_POST, TYPE_POSTS
@@ -48,7 +49,7 @@ class ServerController:
         while not uuid or uuid in self.__active_connection_uuids:
             uuid = str(random.randint(0,1000000000000))
 
-        return uuid            
+        return uuid     
 
     def add_new_connected_user(self, uuid : str) -> None:
         """Called when a new client connects, stores information about their session."""
@@ -69,19 +70,85 @@ class ServerController:
 
         self.__uuid_session_storage.pop(uuid)
         self.__active_connection_uuids.remove(uuid)
-        self.__post_feed_subscribers.pop(uuid)
+        if uuid in self.__post_feed_subscribers:
+            self.__post_feed_subscribers.pop(uuid)
 
         print(self.__active_connection_uuids,self.__uuid_session_storage)
 
 
-    def set_username(self, username : str, uuid : str) -> None:
+    def __set_username(self, username : str, uuid : str) -> None:
         """Sets a client's username in session storage."""
         self.__uuid_session_storage[uuid]["username"] = username
 
     def get_username(self, uuid : str) -> str:
         """Gets a client's username from session storage."""
         return self.__uuid_session_storage[uuid]["username"]
+    
 
+    def login(self, username: str, uuid: str) -> typing.Tuple[bool, str]:
+        """Attempts to login a client, returns success, error code."""
+        # sanitize
+        username = re.sub("[^a-zA-Z0-9_]","", username.lower())
+        
+        if not self.__database.check_username_exists(username):
+            return False, "InvalidUsername"
+        
+        # TODO: auth system
+
+        self.__set_username(username, uuid)
+
+        return True, ""
+
+    def signup(self, username: str, display_name: str, uuid: str) -> typing.Tuple[bool, str]:
+        """Attempts to sign up client, returns success, error code."""
+        # sanitize
+        username = re.sub("[^a-zA-Z0-9_]","", username.lower())
+        display_name = re.sub("[^a-zA-Z0-9_ ]","", display_name.lower())
+
+        if self.__database.check_username_exists(username):
+            return False, "InvalidUsername"
+        
+        # TODO: auth system
+
+        self.__database.add_new_signup(username)
+        self.__database.add_new_profile(username, display_name)
+
+        self.__set_username(username, uuid)
+
+        return True, ""
+
+    def is_logged_in(self, uuid: str) -> bool:
+        """Returns whether a user session has logged in."""
+        return self.__uuid_session_storage[uuid]["username"] != "#anonymous_user"
+    
+    def profile_get_display_name(self, username : str) -> str:
+        """Returns the display name of a user."""
+        return self.__database.profile_get_displayname(username)
+    
+    def get_profile_info(self, uuid:str) -> typing.Dict[str, str]:
+        username : str = self.get_username(uuid)
+
+        displayname: str = self.profile_get_display_name(username)
+
+        result : typing.Dict[str, str] = {
+                "username": username,
+                "displayname": displayname,
+            }
+        return result
+    
+    def user_search(self, username : str) -> typing.Tuple[bool, typing.Dict[str,str]]:
+        """Tries to find a user by username and returns basic info."""
+        if not self.__database.check_username_exists(username):
+            return False, {}
+        
+        display_name : str = self.__database.profile_get_displayname(username)
+
+        resp : typing.Dict[str,str] = {
+            "username": username,
+            "displayname": display_name,
+        }
+
+        return True, resp
 
 
 

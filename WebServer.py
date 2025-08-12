@@ -193,7 +193,8 @@ class WebsocketServerController:
 class WebsocketServer:
     """Direct websocket connection to a single client and logic required to handle it."""
 
-    RESPONSE_UNAUTHENTICATED_ERROR : str = json.dumps({"action":"error","reason":"Unauthenticated request"})
+    RESPONSE_SESSION_MISSMATCH_ERROR : str = json.dumps({"action":"error","reason":"Session missmatch, invalid client secret"})
+    RESPONSE_UNAUTHENTICATED_ERROR : str = json.dumps({"action":"error","reason":"Not authenticated"})
 
     def __init__(self, uuid : str, websocket : TYPE_WEBSOCKET_CONNECTION, server_callback : ServerController, controller_callback : WebsocketServerController) -> None:
         """Constructor"""
@@ -263,13 +264,17 @@ class WebsocketServer:
 
             self.__handle_client_request(json_data)
 
-    def __validate_authed_user(self, client_secret : str) -> bool:
-        """Used to ensure that the client is authenticated under their respective uuid."""
+    def __validate_session(self, client_secret : str) -> bool:
+        """Used to ensure that the client matches their session's uuid."""
         # TODO: change to keeping uuid private and checking client secret matches stored data about uuid
         if client_secret == self.__uuid:
             return True
         else:
             return False
+        
+    def __validate_authenticated_user(self) -> bool:
+        """Used to ensure that the client matches their session's uuid."""
+        return self.__server_callback.is_logged_in(self.__uuid)
    
     def send_post_to_client(self, post : TYPE_POST) -> None:
         """Sends an update to the client containing another post."""
@@ -288,8 +293,8 @@ class WebsocketServer:
 
         client_secret : str = json_data["csec"]
         
-        if not self.__validate_authed_user(client_secret):
-            return self.RESPONSE_UNAUTHENTICATED_ERROR
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
 
         self.__server_callback.subscribe_client_to_posts_feed(self.__uuid, self.send_post_to_client)
 
@@ -310,8 +315,8 @@ class WebsocketServer:
 
         client_secret : str = json_data["csec"]
         
-        if not self.__validate_authed_user(client_secret):
-            return self.RESPONSE_UNAUTHENTICATED_ERROR
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
 
         username : str = self.__server_callback.get_username(self.__uuid)
 
@@ -334,26 +339,122 @@ class WebsocketServer:
         self.__send_response(json.dumps(response_json))
     
 
-    def __handle_set_username(self, json_data : typing.Dict) -> None:
-        """Logic to handle a 'set username' request from the client"""
+    def __handle_login(self, json_data : typing.Dict) -> None:
+        """Logic to handle a login request from the client"""
 
         # TODO: replace with auth system
 
         client_secret : str = json_data["csec"]
         
-        if not self.__validate_authed_user(client_secret):
-            return self.RESPONSE_UNAUTHENTICATED_ERROR
-
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
 
         username : str = json_data["username"]
 
-        self.__server_callback.set_username(username, self.__uuid)
+        response_json : dict = {}
 
-        response_json : dict = {
+        success : bool
+        fail_reason : str
+
+        success, fail_reason = self.__server_callback.login(username, self.__uuid)
+
+        if not success:
+            response_json = {
+                "action":"result",
+                "command":"Login",
+                "success":False,
+                "reason":fail_reason,
+            }
+
+        else:
+            response_json = {
+                "action":"result",
+                "command":"Login",
+                "success":True
+            }
+
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_signup(self, json_data : typing.Dict) -> None:
+        """Logic to handle a signup request from the client"""
+
+        # TODO: replace with auth system
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+
+        username : str = json_data["username"]
+        display_name : str = json_data["displayname"]
+
+        success : bool
+        fail_reason : str
+
+        success, fail_reason = self.__server_callback.signup(username, display_name, self.__uuid)
+
+        if not success:
+            response_json = {
+                "action":"result",
+                "command":"Signup",
+                "success":False,
+                "reason":fail_reason,
+            }
+
+        else:
+
+            response_json : dict = {
+                "action":"result",
+                "command":"Signup",
+                "success":True
+            }
+
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_get_profile_info(self, json_data : typing.Dict) -> None:
+        """Logic to handle a get profile info request from the client"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+        
+        if not self.__validate_authenticated_user():
+            return self.RESPONSE_UNAUTHENTICATED_ERROR
+
+        data: typing.Dict[str,str] = self.__server_callback.get_profile_info(self.__uuid)
+
+        response_json = {
             "action":"result",
-            "command":"SetUsername",
-            "success":True
+            "command":"GetProfileInfo",
+            "data":data,
         }
+
+
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_user_search(self, json_data : typing.Dict) -> None:
+        """Logic to handle a user search request from the client"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+        
+        username = json_data["username"]
+
+        success: bool
+        user_info: typing.Dict[str,str] 
+        success, user_info = self.__server_callback.user_search(username)
+
+        response_json = {
+            "action":"result",
+            "command":"UserSearch",
+            "success": success,
+            "data":user_info,
+        }
+
 
         self.__send_response(json.dumps(response_json))
 
@@ -378,9 +479,21 @@ class WebsocketServer:
                         
                         self.__handle_add_post(json_data)
 
-                    case "SetUsername":
+                    case "Login":
                         
-                        self.__handle_set_username(json_data)
+                        self.__handle_login(json_data)
+
+                    case "Signup":
+                        
+                        self.__handle_signup(json_data)
+
+                    case "GetProfileInfo":
+                        
+                        self.__handle_get_profile_info(json_data)
+
+                    case "UserSearch":
+                        
+                        self.__handle_user_search(json_data)
 
             elif action == "subscribe":
 

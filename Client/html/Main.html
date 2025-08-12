@@ -14,23 +14,60 @@
 
 
     <body>
-        <center>
-            <h1>Social media app</h1>
-        </center>
-        <div>
-            <h3>Posts:</h3>
-            <div id="PostsContainer" style="width: 100%;height:75vh;overflow:scroll">
-                
+        <div id="MainContainer" style="position: absolute; width: 99%; height: 99%;">
+            <center>
+                <h1>Social media app</h1>
+            </center>
+            <div>
+                <h3>Posts:</h3>
+                <div id="PostsContainer" style="width: 100%;height:75vh;overflow:scroll">
+                    
+                </div>
+            </div>
+            <div style="position: absolute; bottom: 0;">
+                <textarea id="NewPost" placeholder="Enter new post" style="width:90vw"></textarea>
+                <button id="SendPost">Send</button>
+            </div>
+            <div style="position: absolute; top: 0;right:0;">
+                <a href="#profile" id="DisplayName">#anonymous</a>
+            </div>
+            <div style="position: absolute; top: 0;left:0;">
+                <button id="UserSearchOpen">User search</button>
             </div>
         </div>
-        <div style="position: absolute; bottom: 0;">
-            <textarea id="NewPost" placeholder="Enter new post" style="width:90vw"></textarea>
-            <button id="SendPost">Send</button>
+        <div id="LoginPopup" style="position: absolute; width:50%; height:40%; top:30%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center">
+            <h2>Login:</h2>
+            <p id="UserDoesntExist" style="color:red;display: none;">This user does not exist.<br></p>
+            <label for="LoginUsername">Username:</label><br>
+            <input type="text" id="LoginUsername" name="LoginUsername" placeholder="Username" pattern="[a-zA-Z0-9_]{3,25}"></input><br>
+            <br><a href="#signup" id="SwitchToSignup">New? Signup instead</a><br>
+            <br><br>
+            <button id="LoginSend" style="padding-left: 75px;padding-right: 75px;padding-top: 10px;padding-bottom: 10px;">Go</button>
         </div>
-        <div id="LoginPopup" style="position: absolute; width:50%; height:20%; top:40%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;">
-            <h2>Enter username:</h2>
-            <input type="text" id="Username" placeholder="Username"></input>
-            <button id="LoginSend">Go</button>
+        <div id="SignupPopup" style="position: absolute; width:50%; height:40%; top:30%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;display: none;">
+            <h2>Signup:</h2>
+            <p id="NotUniqueUsername" style="color:red;display: none;">This username is already in use, please user another.<br></p>
+            <label for="SignupUsername">Username:</label><br>
+            <input type="text" id="SignupUsername" name="SignupUsername" placeholder="Username" pattern="[a-zA-Z0-9_]{3,25}"></input><br><br>
+            <label for="SignupDisplayname">Display name:</label><br>
+            <input type="text" id="SignupDisplayname" name="SignupDisplayname" placeholder="Display name" pattern="[a-zA-Z0-9_]{3,25}"></input>
+            <br><a href="#login" id="SwitchToLogin">Have an account? Log in</a><br>
+            <br><br>
+            <button id="SignupSend" style="padding-left: 75px;padding-right: 75px;padding-top: 10px;padding-bottom: 10px;">Go</button>
+        </div>
+        <div id="UserSearchPopup" style="position: absolute; width:50%; height:40%; top:30%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;display: none;background-color: white;">
+            <h2>User search:</h2>
+            <label for="SearchUsername">Username:</label><br>
+            <input type="text" id="SearchUsername" name="SearchUsername" placeholder="Username" pattern="[a-zA-Z0-9_]{3,25}"></input><br><br>
+            <br><br>
+            <button id="UserSearchSend" style="padding-left: 75px;padding-right: 75px;padding-top: 10px;padding-bottom: 10px;">Go</button>
+        </div>
+        <div id="UserSearchResultPopup" style="position: absolute; width:50%; height:40%; top:30%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;display: none;background-color: white;">
+            <h2>User profile:</h2>
+            <p>Username: <span id="SearchResultUsername">Hello</span></p>
+            <p>Display name: <span id="SearchResultDisplayname">User</span></p>
+            <br><br>
+            <button id="UserSearchResultClose">x</button>
         </div>
     </body>
 

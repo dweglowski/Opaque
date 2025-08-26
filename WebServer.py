@@ -4,7 +4,9 @@ import asyncio
 import typing
 import json
 import os
+import io
 import flask
+import werkzeug.datastructures
 import websockets.asyncio
 import websockets.asyncio.server
 
@@ -23,7 +25,7 @@ class WebServerController:
         """Constructor"""
 
         self.__socket_server : WebsocketServerController = WebsocketServerController(server_callback)
-        self.__webserver : GuiWebserver = GuiWebserver()
+        self.__webserver : GuiWebserver = GuiWebserver(server_callback)
 
     def start(self) -> None:
         """Start both servers."""
@@ -37,8 +39,9 @@ class GuiWebserver:
     HOST = "127.0.0.1"
     PORT = 5000
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, server_callback : ServerController) -> None:
+        """Constructor"""
+        self.__server_callback : ServerController = server_callback
 
     def start(self) -> None:
         threading.Thread(target=self.__start_threaded).start()
@@ -69,10 +72,39 @@ class GuiWebserver:
         """Defines all the web endpoints and provides their handler functions."""
 
         self.__add_endpoint("/", self.__main_page)
+        self.__add_endpoint("/uploads/profile_pictures/<path>", self.get_profile_picture)
+        self.__add_endpoint("/upload/profile_picture/", self.upload_profile_picture, ["Post"])
 
 
     def __main_page(self):
         return flask.render_template("Main.html")
+    
+    def get_profile_picture(self, path: str):
+
+        uuid : str = path.strip(".png")
+        
+        file_data : bytes = self.__server_callback.get_profile_picture(uuid)
+
+        return flask.send_file(
+            io.BytesIO(file_data),
+            mimetype="image/png"
+        )
+    
+    def upload_profile_picture(self):
+
+        img : werkzeug.datastructures.FileStorage = flask.request.files['image']
+
+        # read file, up to a max of 1MB (prevents reading to large of a buffer for profile pic)
+        MAX_SIZE = 1 * 1024 * 1024
+        file_data : bytes = img.stream.read(MAX_SIZE)
+
+        uuid : str = self.__server_callback.upload_profile_picture(file_data)
+        if uuid == "":
+            # failed for some reason, e.g. too big file or invalid file type
+            return flask.abort(415)
+        
+        return uuid
+
 
 
     
@@ -412,6 +444,30 @@ class WebsocketServer:
 
         self.__send_response(json.dumps(response_json))
 
+    def __handle_update_profile_picture(self, json_data : typing.Dict) -> None:
+        """Logic to handle an update profile picture request from the client"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+        
+        if not self.__validate_authenticated_user():
+            return self.RESPONSE_UNAUTHENTICATED_ERROR
+        
+        pictureUUID : str = json_data["pictureUUID"]
+
+        self.__server_callback.update_profile_picture(self.__uuid, pictureUUID)
+
+        response_json = {
+            "action":"result",
+            "command":"UpdateProfilePicture",
+            "success":True,
+        }
+
+
+        self.__send_response(json.dumps(response_json))
+
     def __handle_get_profile_info(self, json_data : typing.Dict) -> None:
         """Logic to handle a get profile info request from the client"""
 
@@ -486,6 +542,10 @@ class WebsocketServer:
                     case "Signup":
                         
                         self.__handle_signup(json_data)
+
+                    case "UpdateProfilePicture":
+                        
+                        self.__handle_update_profile_picture(json_data)
 
                     case "GetProfileInfo":
                         

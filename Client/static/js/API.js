@@ -125,7 +125,8 @@ class SocketAPI {
                     var data = json["data"];
                     var username = data["username"]
                     var display_name = data["displayname"]
-                    this.#client_controller_callback.recived_profile_info(username, display_name);
+                    var pictureid = data["pictureid"]
+                    this.#client_controller_callback.recived_profile_info(username, display_name, pictureid);
                     break;
                 case "UserSearch":
                     success = json["success"];
@@ -136,7 +137,8 @@ class SocketAPI {
                     }
                     break;
                 case "AddPost":
-                    this.#client_controller_callback.get_posts();
+                    break;
+                case "UpdateProfilePicture":
                     break;
                 }
             }
@@ -239,6 +241,43 @@ class SocketAPI {
             "command":"AddPost",
             "csec":this.#client_secret,
             "data":{"to": to, "content": content},
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+
+    }
+
+
+
+    /** Uploads a profile picture to the server through a psot request */
+    upload_profile_picture(blob){
+        var form_data = new FormData();
+        form_data.append('image', blob, 'profile.png');
+
+        var _this = this;
+
+        fetch('/upload/profile_picture', {
+            method: 'POST',
+            body: form_data
+        }).then(response => {
+            if (response.status == 200) {
+                response.text().then(text => {
+                    _this.#client_controller_callback.update_profile_picture(text);
+                })
+            }
+        });
+    }
+
+    
+
+    /** Sends an update profile picture request to the server with the new picture id. */
+    update_profile_picture(picture_id){
+
+        var request_json = {
+            "action":"command",
+            "command":"UpdateProfilePicture",
+            "csec":this.#client_secret,
+            "pictureUUID":picture_id,
         };
 
         this.#send_data(JSON.stringify(request_json))

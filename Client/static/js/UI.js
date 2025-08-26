@@ -21,6 +21,8 @@ class UI {
     #signup_send;
     #signup_switch_to_login;
     #signup_NotUniqueUsername_message;
+    #signup_profile_picture_upload;
+    #signup_profile_picture_canvas;
 
     #profile_display_name;
 
@@ -64,6 +66,12 @@ class UI {
         
         this.#login_send.addEventListener("click", this.login.bind(this)); // bind used to preserve "this"
         this.#signup_send.addEventListener("click", this.signup.bind(this)); // bind used to preserve "this"
+        
+        
+        this.#signup_profile_picture_upload = document.getElementById("SignupProfilePictureUpload");
+        this.#signup_profile_picture_upload.addEventListener("change", this.signup_profile_picture_added.bind(this));
+        // add default image to profile picture
+        this.#add_image_to_canvas("SignupProfilePicture", "/uploads/profile_pictures/0.png", 200, 200);
     }
 
     login(){
@@ -77,7 +85,47 @@ class UI {
         var display_name = this.#signup_displayname_field.value;
         
         this.#client_controller_callback.signup(username, display_name);
+
     }
+
+
+    /** Adds a picture */
+    #add_image_to_canvas(canvas_name, img_data, width, height){
+        var img = new Image();
+        img.onload = function () {
+            var canvas = document.getElementById(canvas_name);
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        }
+        img.src = img_data;
+    }
+    
+    #signup_add_profile_picture_to_canvas(file){
+        var reader = new FileReader();
+        const _this = this;
+        reader.onload = function(){
+            var img_data = reader.result;
+            _this.#add_image_to_canvas("SignupProfilePicture", img_data, 200, 200);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    signup_profile_picture_added(event){
+        this.#signup_add_profile_picture_to_canvas(event.target.files[0]);
+    }
+
+
+    upload_signup_picture(){
+        // get image data as scaled png file from canvas
+        var image_data_url = document.getElementById("SignupProfilePicture").toDataURL('image/png');
+        fetch(image_data_url)
+            .then(res => res.blob())
+            .then(blob => {
+                // once we have a png image, upload it to the server
+                this.#client_controller_callback.upload_profile_picture(blob);
+        });
+    }
+
+
     
     login_failed(reason){
         if (reason == "DoesntExist"){
@@ -127,7 +175,11 @@ class UI {
         this.#profile_display_name.addEventListener("click", this.#user_search.bind(this, username));
     }
 
-
+    display_profile_picture_icon(pictureid){
+        this.#add_image_to_canvas("MyProfilePicture", "/uploads/profile_pictures/"+pictureid+".png", 50, 50);
+    }
+    
+    
     #open_user_search(){
         this.#user_search_container.style.display="block";
         this.#MainContainer.style.filter="blur(5px)";
@@ -135,7 +187,7 @@ class UI {
         this.#user_search_username = document.getElementById("SearchUsername");
         this.#user_search_username = document.getElementById("SearchUsername");
     }
-
+    
     #user_search(username){
         this.#client_controller_callback.user_search(username);
     }
@@ -146,12 +198,16 @@ class UI {
     }
     
     user_search_result(result){
-
+        
         this.#user_search_container.style.display = "none";
         this.#user_search_result_container.style.display = "block";
-
+        
         document.getElementById("SearchResultUsername").textContent = result["username"];
         document.getElementById("SearchResultDisplayname").textContent = result["displayname"];
+        
+        var profile_pictureid = result["pictureid"]
+        this.#add_image_to_canvas("UserSearchProfilePicture", "/uploads/profile_pictures/"+profile_pictureid+".png", 200, 200);
+        
 
         this.#user_search_result_close_btn = document.getElementById("UserSearchResultClose");
         this.#user_search_result_close_btn.addEventListener("click", this.user_search_result_close.bind(this)); // bind used to preserve "this"

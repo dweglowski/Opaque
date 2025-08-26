@@ -30,6 +30,7 @@
             </div>
             <div style="position: absolute; top: 0;right:0;">
                 <a href="#profile" id="DisplayName">#anonymous</a>
+                <div style="border-radius: 25px;background-color: white;border: 1px solid #000;overflow: hidden;width:50px;height:50px;"><canvas id="MyProfilePicture" width="50" height="50"></canvas></div>
             </div>
             <div style="position: absolute; top: 0;left:0;">
                 <button id="UserSearchOpen">User search</button>
@@ -44,13 +45,16 @@
             <br><br>
             <button id="LoginSend" style="padding-left: 75px;padding-right: 75px;padding-top: 10px;padding-bottom: 10px;">Go</button>
         </div>
-        <div id="SignupPopup" style="position: absolute; width:50%; height:40%; top:30%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;display: none;">
+        <div id="SignupPopup" style="position: absolute; width:50%; height:70%; top:15%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;display: none;">
             <h2>Signup:</h2>
             <p id="NotUniqueUsername" style="color:red;display: none;">This username is already in use, please user another.<br></p>
             <label for="SignupUsername">Username:</label><br>
             <input type="text" id="SignupUsername" name="SignupUsername" placeholder="Username" pattern="[a-zA-Z0-9_]{3,25}"></input><br><br>
             <label for="SignupDisplayname">Display name:</label><br>
             <input type="text" id="SignupDisplayname" name="SignupDisplayname" placeholder="Display name" pattern="[a-zA-Z0-9_]{3,25}"></input>
+            <br><br>
+            <center><div style="border-radius: 100px;background-color: white;border: 1px solid #000;overflow: hidden;width:200px;height:200px;"><canvas id="SignupProfilePicture" width="200" height="200"></canvas></div></center>
+            <input type="file" id = "SignupProfilePictureUpload" accept=".png,.jpg,.bmp,.webp" />
             <br><a href="#login" id="SwitchToLogin">Have an account? Log in</a><br>
             <br><br>
             <button id="SignupSend" style="padding-left: 75px;padding-right: 75px;padding-top: 10px;padding-bottom: 10px;">Go</button>
@@ -62,8 +66,9 @@
             <br><br>
             <button id="UserSearchSend" style="padding-left: 75px;padding-right: 75px;padding-top: 10px;padding-bottom: 10px;">Go</button>
         </div>
-        <div id="UserSearchResultPopup" style="position: absolute; width:50%; height:40%; top:30%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;display: none;background-color: white;">
+        <div id="UserSearchResultPopup" style="position: absolute; width:50%; height:60%; top:20%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;display: none;background-color: white;">
             <h2>User profile:</h2>
+            <center><div style="border-radius: 100px;background-color: white;border: 1px solid #000;overflow: hidden;width:200px;height:200px;"><canvas id="UserSearchProfilePicture" width="200" height="200"></canvas></div></center>
             <p>Username: <span id="SearchResultUsername">Hello</span></p>
             <p>Display name: <span id="SearchResultDisplayname">User</span></p>
             <br><br>

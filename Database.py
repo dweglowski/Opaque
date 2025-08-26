@@ -78,16 +78,27 @@ class DatabaseController:
 
     def profile_get_displayname(self, username : str) -> str:
         return self.__profiles_db_cursor.execute("SELECT displayname FROM profiles WHERE username = ?", (username,)).fetchone()[0]
+    def profile_get_pictureid(self, username : str) -> str:
+        return self.__profiles_db_cursor.execute("SELECT photoid FROM profiles WHERE username = ?", (username,)).fetchone()[0]
     
     def __add_profile_to_db(self, username : str, displayname : str) -> None:
         self.__profiles_db_cursor.execute('''
             INSERT INTO profiles ("username", "displayname", "bio", "photoid") 
             VALUES (?, ?, ?, ?)
-        ''', (username, displayname, "", ""))
+        ''', (username, displayname, "", "0"))
         self.__profiles_db.commit()
     
     def add_new_profile(self, username : str, displayname : str) -> None:
         self.__add_profile_to_db(username, displayname)
+
+    def update_profile_picture(self, username, pictureUUID) -> None:
+        """Updates the pictureid with a uuid pointing to an uploaded profile picture"""
+        self.__profiles_db_cursor.execute('''
+            UPDATE profiles 
+            SET "photoid" = ?
+            WHERE "username" = ?
+        ''', (pictureUUID, username))
+        self.__profiles_db.commit()
     
         
     def close(self) -> None:

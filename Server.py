@@ -1,5 +1,6 @@
 import WebServer
 import Database
+import Media
 import typing
 import random
 import time
@@ -15,6 +16,7 @@ class ServerController:
         
         self.__init_web_server()
         self.__init_database()
+        self.__init_media()
 
         # list of all connected client uuids
         self.__active_connection_uuids : typing.List[str] = []
@@ -34,6 +36,10 @@ class ServerController:
         """Initialise the database and all logic that should be done to achive this."""
         self.__database : Database.DatabaseController = Database.DatabaseController()
 
+    def __init_media(self) -> None:
+        """Initialise the media controller and all logic that should be done to achive this."""
+        self.__media : Media.MediaController = Media.MediaController()
+
     def start(self) -> None:
         """Starts the server running."""
         self.__webserver.start()
@@ -47,7 +53,7 @@ class ServerController:
         """Generate a random UUID."""
         uuid : str = ""
         while not uuid or uuid in self.__active_connection_uuids:
-            uuid = str(random.randint(0,1000000000000))
+            uuid = str(random.randint(1000000000000,10000000000000-1))
 
         return uuid     
 
@@ -125,14 +131,21 @@ class ServerController:
         """Returns the display name of a user."""
         return self.__database.profile_get_displayname(username)
     
+    def profile_get_profile_pictureid(self, username : str) -> str:
+        """Returns the uuid for a user's profile picture."""
+        pictureid : str = self.__database.profile_get_pictureid(username)
+        return re.sub("[^0-9]*","", pictureid) # sanitize first
+    
     def get_profile_info(self, uuid:str) -> typing.Dict[str, str]:
         username : str = self.get_username(uuid)
 
         displayname: str = self.profile_get_display_name(username)
+        pictureID: str = self.profile_get_profile_pictureid(username)
 
         result : typing.Dict[str, str] = {
                 "username": username,
                 "displayname": displayname,
+                "pictureid":pictureID,
             }
         return result
     
@@ -142,10 +155,12 @@ class ServerController:
             return False, {}
         
         display_name : str = self.__database.profile_get_displayname(username)
+        pictureID : str = self.__database.profile_get_pictureid(username)
 
         resp : typing.Dict[str,str] = {
             "username": username,
             "displayname": display_name,
+            "pictureid":pictureID,
         }
 
         return True, resp
@@ -187,6 +202,8 @@ class ServerController:
         uuid : str
         send_post_to_client_callback : typing.Callable[[TYPE_POST], None]
 
+        post["fromname"] = self.__database.profile_get_displayname(post["from"])
+
         for uuid in self.__post_feed_subscribers:
 
             if not self.__validate_post_is_for_client(post, uuid):
@@ -207,6 +224,22 @@ class ServerController:
     
         # ensure all clients recive this message
         self.__send_new_post_to_relevant_users(post)
+
+
+
+
+    def get_profile_picture(self, uuid : str) -> bytes:
+        """Finds and returns a profile picture stored on the server."""
+        return self.__media.get_profile_picture(uuid)
+    
+    def upload_profile_picture(self, raw_data) -> str:
+        """Uploads a new profile picture, returns the uuid."""
+        return self.__media.upload_profile_picture(raw_data)
+    
+    def update_profile_picture(self, uuid, pictureUUID) -> None:
+        username : str = self.get_username(uuid)
+        self.__database.update_profile_picture(username, pictureUUID)
+
     
 
 if __name__ == "__main__":

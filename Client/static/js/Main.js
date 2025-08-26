@@ -49,6 +49,8 @@ class Client {
     }
     
     signup_success(){
+        this.#ui.upload_signup_picture();
+
         this.#logged_in=true;
         
         this.#ui.signup_success();
@@ -58,18 +60,34 @@ class Client {
         this.subsribe_to_posts();
 
         this.get_profile_info();
+
+        setTimeout(() => {
+            // allow for time for profile photo to update and then refresh profile info
+            this.get_profile_info();
+        }, 1000); 
     }
 
     signup_failed(reason){
         this.#ui.signup_failed(reason);
     }
 
+
+    upload_profile_picture(blob){
+        this.#api.upload_profile_picture(blob);
+    }
+
+    update_profile_picture(picture_id){
+        this.#api.update_profile_picture(picture_id);
+    }
+
+
     get_profile_info(){
         this.#api.get_profile_info();
     }
 
-    recived_profile_info(username, display_name){
+    recived_profile_info(username, display_name, pictureid){
         this.#ui.display_username(username, display_name);
+        this.#ui.display_profile_picture_icon(pictureid);
     }
 
     user_search(username){

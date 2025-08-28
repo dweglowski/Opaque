@@ -72,14 +72,20 @@ class Client {
     }
 
 
-    upload_profile_picture(blob){
-        this.#api.upload_profile_picture(blob);
+    async upload_profile_picture(blob){
+        await this.#api.upload_profile_picture(blob);
     }
 
     update_profile_picture(picture_id){
         this.#api.update_profile_picture(picture_id);
     }
 
+
+
+    /** Uplaods a photo and recives the UUID of the picture */
+    async upload_post_picture(blob){
+        return this.#api.upload_post_picture(blob);
+    }
 
     get_profile_info(){
         this.#api.get_profile_info();
@@ -110,7 +116,15 @@ class Client {
     }
 
     /** Initiate getting posts */
-    add_post(content, to){
+    async add_post(content, to){
+
+        // add each image to the post
+        var pictures = await this.#ui.upload_all_post_pictures();
+        for (var i = 0; i < pictures.length; i++) {
+            var uuid = pictures[i];
+            content+=" {{picture:"+uuid+"}}"
+        }
+
         this.#api.add_post(content, to);
     }
 

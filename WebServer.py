@@ -74,6 +74,8 @@ class GuiWebserver:
         self.__add_endpoint("/", self.__main_page)
         self.__add_endpoint("/uploads/profile_pictures/<path>", self.get_profile_picture)
         self.__add_endpoint("/upload/profile_picture/", self.upload_profile_picture, ["Post"])
+        self.__add_endpoint("/uploads/post_pictures/<path>", self.get_post_picture)
+        self.__add_endpoint("/upload/post_picture/", self.upload_post_picture, ["Post"])
 
 
     def __main_page(self):
@@ -99,6 +101,32 @@ class GuiWebserver:
         file_data : bytes = img.stream.read(MAX_SIZE)
 
         uuid : str = self.__server_callback.upload_profile_picture(file_data)
+        if uuid == "":
+            # failed for some reason, e.g. too big file or invalid file type
+            return flask.abort(415)
+        
+        return uuid
+    
+      
+    def get_post_picture(self, path: str):
+
+        uuid : str = path.strip(".png")
+        
+        file_data : bytes = self.__server_callback.get_post_picture(uuid)
+
+        return flask.send_file(
+            io.BytesIO(file_data),
+            mimetype="image/png"
+        )
+
+    def upload_post_picture(self):
+        img : werkzeug.datastructures.FileStorage = flask.request.files['image']
+
+        # read file, up to a max of 10MB (prevents reading to large of a buffer)
+        MAX_SIZE = 10 * 1024 * 1024
+        file_data : bytes = img.stream.read(MAX_SIZE)
+
+        uuid : str = self.__server_callback.upload_post_picture(file_data)
         if uuid == "":
             # failed for some reason, e.g. too big file or invalid file type
             return flask.abort(415)

@@ -27,6 +27,7 @@
             <div style="position: absolute; bottom: 0;">
                 <textarea id="NewPost" placeholder="Enter new post" style="width:90vw"></textarea>
                 <button id="SendPost">Send</button>
+                <button id="NewPostAddContent">+</button>
             </div>
             <div style="position: absolute; top: 0;right:0;">
                 <a href="#profile" id="DisplayName">#anonymous</a>
@@ -54,7 +55,7 @@
             <input type="text" id="SignupDisplayname" name="SignupDisplayname" placeholder="Display name" pattern="[a-zA-Z0-9_]{3,25}"></input>
             <br><br>
             <center><div style="border-radius: 100px;background-color: white;border: 1px solid #000;overflow: hidden;width:200px;height:200px;"><canvas id="SignupProfilePicture" width="200" height="200"></canvas></div></center>
-            <input type="file" id = "SignupProfilePictureUpload" accept=".png,.jpg,.bmp,.webp" />
+            <input type="file" id = "SignupProfilePictureUpload" accept=".png,.jpg,.jpeg,.bmp,.webp" />
             <br><a href="#login" id="SwitchToLogin">Have an account? Log in</a><br>
             <br><br>
             <button id="SignupSend" style="padding-left: 75px;padding-right: 75px;padding-top: 10px;padding-bottom: 10px;">Go</button>
@@ -73,6 +74,17 @@
             <p>Display name: <span id="SearchResultDisplayname">User</span></p>
             <br><br>
             <button id="UserSearchResultClose">x</button>
+        </div>
+        <div id="NewPostContentPopup" style="position: absolute; width:70%; height:70%; top:15%; left:15%; border: 3px black solid; border-radius: 10px;text-align: center;background-color: white; display:none;">
+            <h2>Add images or videos:</h2>
+
+            <input type="file" id = "NewPostImageUpload" accept=".png,.jpg,.jpeg,.bmp,.webp" />
+            
+            <button id="NewPostContentClose">Attach to post</button>
+            
+            <center id="NewPostImagesContainer">
+                <canvas id="NewPostImageTemplateCanvas" width="200" height="200" style="display: none;"></canvas>
+            </center>
         </div>
     </body>
 

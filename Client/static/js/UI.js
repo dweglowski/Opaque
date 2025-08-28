@@ -38,6 +38,14 @@ class UI {
     #new_post_field;
     #add_post_btn;
 
+    #new_post_content_container;
+    #new_post_content_container_close_btn;
+    #new_post_add_content_btn;
+    #new_post_images_container;
+    #new_post_image_template;
+    #new_post_image_upload;
+
+
     constructor(client_controller_callback){
         this.#client_controller_callback = client_controller_callback;
     }
@@ -71,7 +79,7 @@ class UI {
         this.#signup_profile_picture_upload = document.getElementById("SignupProfilePictureUpload");
         this.#signup_profile_picture_upload.addEventListener("change", this.signup_profile_picture_added.bind(this));
         // add default image to profile picture
-        this.#add_image_to_canvas("SignupProfilePicture", "/uploads/profile_pictures/0.png", 200, 200);
+        this.#add_image_to_canvas_fixed_size("SignupProfilePicture", "/uploads/profile_pictures/0.png", 200, 200);
     }
 
     login(){
@@ -90,7 +98,7 @@ class UI {
 
 
     /** Adds a picture */
-    #add_image_to_canvas(canvas_name, img_data, width, height){
+    #add_image_to_canvas_fixed_size(canvas_name, img_data, width, height){
         var img = new Image();
         img.onload = function () {
             var canvas = document.getElementById(canvas_name);
@@ -104,7 +112,7 @@ class UI {
         const _this = this;
         reader.onload = function(){
             var img_data = reader.result;
-            _this.#add_image_to_canvas("SignupProfilePicture", img_data, 200, 200);
+            _this.#add_image_to_canvas_fixed_size("SignupProfilePicture", img_data, 200, 200);
         };
         reader.readAsDataURL(file);
     }
@@ -114,15 +122,15 @@ class UI {
     }
 
 
-    upload_signup_picture(){
+    async upload_signup_picture(){
         // get image data as scaled png file from canvas
         var image_data_url = document.getElementById("SignupProfilePicture").toDataURL('image/png');
-        fetch(image_data_url)
-            .then(res => res.blob())
-            .then(blob => {
-                // once we have a png image, upload it to the server
-                this.#client_controller_callback.upload_profile_picture(blob);
-        });
+        var res = await fetch(image_data_url);
+        var blob = await res.blob();
+        
+        // once we have a png image, upload it to the server
+        await this.#client_controller_callback.upload_profile_picture(blob);
+
     }
 
 
@@ -158,6 +166,22 @@ class UI {
         
         
         this.#posts_container = document.getElementById("PostsContainer");
+        
+        
+        this.#new_post_content_container = document.getElementById("NewPostContentPopup");
+
+        this.#new_post_content_container = document.getElementById("NewPostContentPopup");
+        this.#new_post_image_template = document.getElementById("NewPostImageTemplateCanvas");
+        this.#new_post_images_container = document.getElementById("NewPostImagesContainer");
+        
+        this.#new_post_add_content_btn = document.getElementById("NewPostAddContent");
+        this.#new_post_add_content_btn.addEventListener("click", this.#open_content_select_menu.bind(this));
+        this.#new_post_content_container_close_btn = document.getElementById("NewPostContentClose");
+        this.#new_post_content_container_close_btn.addEventListener("click", this.#close_content_select_menu.bind(this));
+        
+        this.#new_post_image_upload = document.getElementById("NewPostImageUpload");
+        this.#new_post_image_upload.addEventListener("change", this.new_post_picture_added.bind(this));
+        
 
         
         this.#user_search_container = document.getElementById("UserSearchPopup");
@@ -166,6 +190,8 @@ class UI {
         this.#user_search_open_btn.addEventListener("click", this.#open_user_search.bind(this)); // bind used to preserve "this"
         this.#user_search_send_btn = document.getElementById("UserSearchSend");
         this.#user_search_send_btn.addEventListener("click", this.start_user_search.bind(this));
+
+
         
     }
 
@@ -176,7 +202,7 @@ class UI {
     }
 
     display_profile_picture_icon(pictureid){
-        this.#add_image_to_canvas("MyProfilePicture", "/uploads/profile_pictures/"+pictureid+".png", 50, 50);
+        this.#add_image_to_canvas_fixed_size("MyProfilePicture", "/uploads/profile_pictures/"+pictureid+".png", 50, 50);
     }
     
     
@@ -206,7 +232,7 @@ class UI {
         document.getElementById("SearchResultDisplayname").textContent = result["displayname"];
         
         var profile_pictureid = result["pictureid"]
-        this.#add_image_to_canvas("UserSearchProfilePicture", "/uploads/profile_pictures/"+profile_pictureid+".png", 200, 200);
+        this.#add_image_to_canvas_fixed_size("UserSearchProfilePicture", "/uploads/profile_pictures/"+profile_pictureid+".png", 200, 200);
         
 
         this.#user_search_result_close_btn = document.getElementById("UserSearchResultClose");
@@ -216,6 +242,89 @@ class UI {
     user_search_result_close(){
         this.#user_search_result_container.style.display="none";
         this.#MainContainer.style.filter="";
+    }
+
+    #open_content_select_menu(){
+        console.log(this.#new_post_content_container);
+        this.#new_post_content_container.style.display="block";
+    }
+    
+    #close_content_select_menu(){
+        this.#new_post_content_container.style.display="none";
+        
+    }
+
+    
+
+    /** Adds a new canvas element from a template and add an image to it */
+    #add_new_canvas_with_image(template, img_data, max_width, max_height){
+        var img = new Image();
+        img.onload = function () {
+            var height = img.height;
+            var width = img.width;
+
+            // if (height > max_height || width > max_width){
+            var scale = Math.min(max_width / width, max_height / height); // get the scaling ratio
+            width = Math.floor(width * scale);
+            height = Math.floor(height * scale);
+            // }
+
+            // duplicate the template and add the new canvas below
+            var canvas = template.cloneNode();
+            template.after(canvas);
+            canvas.style.display="block";
+            canvas.width = width;
+            canvas.height = height;
+            canvas.style.width = width/5+"px";
+            canvas.style.height = height/5+"px";
+
+            // canvas.getContext('2d').imageSmoothingEnabled = false;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        }
+        img.src = img_data;
+    }
+
+    #new_post_add_picture_to_canvas(file){
+        var reader = new FileReader();
+        const _this = this;
+        reader.onload = function(){
+            var img_data = reader.result;
+            _this.#add_new_canvas_with_image(_this.#new_post_image_template, img_data, 1000, 1000);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    new_post_picture_added(event){
+        this.#new_post_add_picture_to_canvas(event.target.files[0]);
+    }
+    async upload_post_picture_and_get_uuid(canvas_element){
+        // get image data as scaled png file from canvas
+        
+        var image_data_url = canvas_element.toDataURL('image/png');
+        var res = await fetch(image_data_url);
+        var blob = await res.blob();
+        // once we have a png image, upload it to the server
+        var uuid = await this.#client_controller_callback.upload_post_picture(blob);
+        
+        return uuid;
+    }
+
+    /** Uploads all pictures and returns a list of UUIDs  */
+    async upload_all_post_pictures(){
+        var uuids = [];
+        
+        var image_canvases = this.#new_post_images_container.children;
+
+        // iterate over every image canvas with image except for the first one (which is the template)
+        for (var i = 1; i < image_canvases.length; i++) {
+
+            var image_canvas = image_canvases[i];
+            var id = await this.upload_post_picture_and_get_uuid(image_canvas);
+            uuids.push(id);
+            
+        }
+        return uuids;
+        
     }
 
 
@@ -247,6 +356,22 @@ class UI {
         var to_text = document.createElement("p");
         to_text.textContent = `To: ${to}`;
         message_container.appendChild(to_text);
+
+        
+        var images = [...content.matchAll(/\{\{picture:(\d+)\}\}/g)];
+        
+        for (var i = 0; i < images.length; i++) {
+
+            var imgid = images[i][1];
+
+            var img = document.createElement("img");
+            img.src = "/uploads/post_pictures/"+imgid+".png";
+            img.style.width="500px";
+            message_container.appendChild(img);
+        }
+
+        content = content.replace(/\{\{picture:\d+\}\}/g,"");
+
 
         var content_text = document.createElement("p");
         content_text.textContent = content;

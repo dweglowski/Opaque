@@ -250,22 +250,34 @@ class SocketAPI {
 
 
     /** Uploads a profile picture to the server through a psot request */
-    upload_profile_picture(blob){
+    async upload_profile_picture(blob){
         var form_data = new FormData();
         form_data.append('image', blob, 'profile.png');
 
-        var _this = this;
 
-        fetch('/upload/profile_picture', {
+        var response = await fetch('/upload/profile_picture', {
             method: 'POST',
             body: form_data
-        }).then(response => {
-            if (response.status == 200) {
-                response.text().then(text => {
-                    _this.#client_controller_callback.update_profile_picture(text);
-                })
-            }
-        });
+        })
+        if (response.status == 200) {
+            var id = await response.text();
+            this.#client_controller_callback.update_profile_picture(id);
+        }
+    }
+
+    /** Uploads a picture from a post to the server through a post request  */
+    async upload_post_picture(blob){
+        var form_data = new FormData();
+        form_data.append('image', blob, 'profile.png');
+
+        var response = await fetch('/upload/post_picture', {
+            method: 'POST',
+            body: form_data
+        })
+        if (response.status == 200) {
+            var id = await response.text();
+            return id
+        }
     }
 
     

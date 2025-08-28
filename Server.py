@@ -239,6 +239,14 @@ class ServerController:
     def update_profile_picture(self, uuid, pictureUUID) -> None:
         username : str = self.get_username(uuid)
         self.__database.update_profile_picture(username, pictureUUID)
+    
+    def get_post_picture(self, uuid : str) -> bytes:
+        """Finds and returns a post picture stored on the server."""
+        return self.__media.get_post_picture(uuid)
+    
+    def upload_post_picture(self, raw_data) -> str:
+        """Uploads a new post picture, returns the uuid."""
+        return self.__media.upload_post_picture(raw_data)
 
     
 

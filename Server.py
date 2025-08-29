@@ -91,7 +91,18 @@ class ServerController:
         return self.__uuid_session_storage[uuid]["username"]
     
 
-    def login(self, username: str, uuid: str) -> typing.Tuple[bool, str]:
+    def get_password_salt(self, username: str, uuid: str) -> str:
+        """Provides a hashing salt for a specific user"""
+        # sanitize
+        username = re.sub("[^a-zA-Z0-9_]","", username.lower())
+        
+        if not self.__database.check_username_exists(username):
+            return ""
+
+        return self.__database.get_password_salt(username)
+
+
+    def login(self, username: str, hash : str, uuid: str) -> typing.Tuple[bool, str]:
         """Attempts to login a client, returns success, error code."""
         # sanitize
         username = re.sub("[^a-zA-Z0-9_]","", username.lower())
@@ -100,12 +111,14 @@ class ServerController:
             return False, "InvalidUsername"
         
         # TODO: auth system
+        if not self.__database.check_password_matches(hash, username):
+            return False, "InvalidPassword"
 
         self.__set_username(username, uuid)
 
         return True, ""
 
-    def signup(self, username: str, display_name: str, uuid: str) -> typing.Tuple[bool, str]:
+    def signup(self, username: str, display_name: str, hash : str, salt : str, uuid: str) -> typing.Tuple[bool, str]:
         """Attempts to sign up client, returns success, error code."""
         # sanitize
         username = re.sub("[^a-zA-Z0-9_]","", username.lower())
@@ -114,9 +127,8 @@ class ServerController:
         if self.__database.check_username_exists(username):
             return False, "InvalidUsername"
         
-        # TODO: auth system
 
-        self.__database.add_new_signup(username)
+        self.__database.add_new_signup(username, hash, salt)
         self.__database.add_new_profile(username, display_name)
 
         self.__set_username(username, uuid)

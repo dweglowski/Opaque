@@ -399,10 +399,8 @@ class WebsocketServer:
         self.__send_response(json.dumps(response_json))
     
 
-    def __handle_login(self, json_data : typing.Dict) -> None:
-        """Logic to handle a login request from the client"""
-
-        # TODO: replace with auth system
+    def __handle_request_salt(self, json_data : typing.Dict) -> None:
+        """Logic to provide a password salt to the user"""
 
         client_secret : str = json_data["csec"]
         
@@ -413,10 +411,35 @@ class WebsocketServer:
 
         response_json : dict = {}
 
+        salt: str = self.__server_callback.get_password_salt(username, self.__uuid)
+
+    
+        response_json = {
+            "action":"result",
+            "command":"RequestPasswordSalt",
+            "data":salt,
+        }
+
+        self.__send_response(json.dumps(response_json))
+    
+
+    def __handle_login(self, json_data : typing.Dict) -> None:
+        """Logic to handle a login request from the client"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        username : str = json_data["username"]
+        hash : str = json_data["hash"]
+
+        response_json : dict = {}
+
         success : bool
         fail_reason : str
 
-        success, fail_reason = self.__server_callback.login(username, self.__uuid)
+        success, fail_reason = self.__server_callback.login(username, hash, self.__uuid)
 
         if not success:
             response_json = {
@@ -448,11 +471,13 @@ class WebsocketServer:
 
         username : str = json_data["username"]
         display_name : str = json_data["displayname"]
+        hash : str = json_data["hash"]
+        salt : str = json_data["salt"]
 
         success : bool
         fail_reason : str
 
-        success, fail_reason = self.__server_callback.signup(username, display_name, self.__uuid)
+        success, fail_reason = self.__server_callback.signup(username, display_name, hash, salt, self.__uuid)
 
         if not success:
             response_json = {
@@ -562,6 +587,10 @@ class WebsocketServer:
                     case "AddPost":
                         
                         self.__handle_add_post(json_data)
+
+                    case "RequestPasswordSalt":
+                        
+                        self.__handle_request_salt(json_data)
 
                     case "Login":
                         

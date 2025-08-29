@@ -11,13 +11,16 @@ class UI {
 
     #login_container;
     #login_username_field;
+    #login_password_field;
     #login_send;
     #login_UserDoesntExist_message;
+    #login_InvalidPassword_message;
     #login_switch_to_signup;
 
     #signup_container;
     #signup_username_field;
     #signup_displayname_field;
+    #signup_password_field;
     #signup_send;
     #signup_switch_to_login;
     #signup_NotUniqueUsername_message;
@@ -56,12 +59,15 @@ class UI {
         
         this.#login_container = document.getElementById("LoginPopup");
         this.#login_username_field = document.getElementById("LoginUsername");
+        this.#login_password_field = document.getElementById("LoginPassword");
         this.#login_send = document.getElementById("LoginSend");
         this.#login_UserDoesntExist_message = document.getElementById("UserDoesntExist");
+        this.#login_InvalidPassword_message = document.getElementById("InvalidPassword");
         
         this.#signup_container = document.getElementById("SignupPopup");
         this.#signup_username_field = document.getElementById("SignupUsername");
         this.#signup_displayname_field = document.getElementById("SignupDisplayname");
+        this.#signup_password_field = document.getElementById("SignupPassword");
         this.#signup_send = document.getElementById("SignupSend");
         this.#signup_NotUniqueUsername_message = document.getElementById("NotUniqueUsername");
 
@@ -83,16 +89,22 @@ class UI {
     }
 
     login(){
-        var username = this.#login_username_field.value;
+        this.#login_UserDoesntExist_message.style.display="none";
+        this.#login_InvalidPassword_message.style.display="none";
+
         
-        this.#client_controller_callback.login(username);
+        var username = this.#login_username_field.value;
+        var password = this.#login_password_field.value;
+        
+        this.#client_controller_callback.login_start(username,password);
     }
     
     signup(){
         var username = this.#signup_username_field.value;
         var display_name = this.#signup_displayname_field.value;
+        var password = this.#signup_password_field.value;
         
-        this.#client_controller_callback.signup(username, display_name);
+        this.#client_controller_callback.signup(username, display_name, password);
 
     }
 
@@ -136,8 +148,13 @@ class UI {
 
     
     login_failed(reason){
+        this.#login_UserDoesntExist_message.style.display="none";
+        this.#login_InvalidPassword_message.style.display="none";
         if (reason == "DoesntExist"){
             this.#login_UserDoesntExist_message.style.display="block";
+        }
+        else if (reason == "Password"){
+            this.#login_InvalidPassword_message.style.display="block";
         }
     }
     

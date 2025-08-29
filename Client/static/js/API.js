@@ -99,11 +99,19 @@ class SocketAPI {
                         if (reason == "InvalidUsername"){
                             this.#client_controller_callback.login_failed("DoesntExist");
                         }
+                        else if (reason == "InvalidPassword"){
+                            this.#client_controller_callback.login_failed("Password");
+                        }
                         else {
                             this.#client_controller_callback.login_failed("Generic");
                         }
                     }
 
+                    break;
+                case "RequestPasswordSalt":
+                    var salt = json["data"];
+                    this.#client_controller_callback.login(salt);
+                    
                     break;
                 case "Signup":
                     success = json["success"];
@@ -164,12 +172,12 @@ class SocketAPI {
     }
 
 
-    /** Sends a login request to the server. */
-    login(username){
+    /** Requests the password salt for a user. */
+    request_salt(username){
 
         var request_json = {
             "action":"command",
-            "command":"Login",
+            "command":"RequestPasswordSalt",
             "csec":this.#client_secret,
             "username":username,
         };
@@ -177,9 +185,24 @@ class SocketAPI {
         this.#send_data(JSON.stringify(request_json))
 
     }
+    
+    /** Sends a login request to the server. */
+    login(username, hash){
+
+        var request_json = {
+            "action":"command",
+            "command":"Login",
+            "csec":this.#client_secret,
+            "username":username,
+            "hash": hash,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+
+    }
 
     /** Sends a signup request to the server. */
-    signup(username, display_name){
+    signup(username, display_name, hash, salt){
 
         var request_json = {
             "action":"command",
@@ -187,6 +210,8 @@ class SocketAPI {
             "csec":this.#client_secret,
             "username":username,
             "displayname":display_name,
+            "hash":hash,
+            "salt":salt,
         };
 
         this.#send_data(JSON.stringify(request_json))

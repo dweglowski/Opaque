@@ -40,8 +40,11 @@
         <div id="LoginPopup" style="position: absolute; width:50%; height:40%; top:30%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center">
             <h2>Login:</h2>
             <p id="UserDoesntExist" style="color:red;display: none;">This user does not exist.<br></p>
+            <p id="InvalidPassword" style="color:red;display: none;">Invalid password.<br></p>
             <label for="LoginUsername">Username:</label><br>
             <input type="text" id="LoginUsername" name="LoginUsername" placeholder="Username" pattern="[a-zA-Z0-9_]{3,25}"></input><br>
+            <label for="LoginPassword">Password:</label><br>
+            <input type="password" id="LoginPassword" name="LoginPassword" placeholder="Password"></input><br>
             <br><a href="#signup" id="SwitchToSignup">New? Signup instead</a><br>
             <br><br>
             <button id="LoginSend" style="padding-left: 75px;padding-right: 75px;padding-top: 10px;padding-bottom: 10px;">Go</button>
@@ -51,6 +54,8 @@
             <p id="NotUniqueUsername" style="color:red;display: none;">This username is already in use, please user another.<br></p>
             <label for="SignupUsername">Username:</label><br>
             <input type="text" id="SignupUsername" name="SignupUsername" placeholder="Username" pattern="[a-zA-Z0-9_]{3,25}"></input><br><br>
+            <label for="SignupPassword">Password:</label><br>
+            <input type="password" id="SignupPassword" name="SignupPassword" placeholder="Password"></input><br>
             <label for="SignupDisplayname">Display name:</label><br>
             <input type="text" id="SignupDisplayname" name="SignupDisplayname" placeholder="Display name" pattern="[a-zA-Z0-9_]{3,25}"></input>
             <br><br>

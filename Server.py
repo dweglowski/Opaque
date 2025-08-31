@@ -2,9 +2,9 @@ import WebServer
 import Database
 import Media
 import typing
-import random
 import time
 import re
+import uuid
 
 # Define custom type hints
 from ServerUtils import TYPE_POST, TYPE_POSTS
@@ -38,7 +38,7 @@ class ServerController:
 
     def __init_media(self) -> None:
         """Initialise the media controller and all logic that should be done to achive this."""
-        self.__media : Media.MediaController = Media.MediaController()
+        self.__media : Media.MediaController = Media.MediaController(self.generate_uuid)
 
     def start(self) -> None:
         """Starts the server running."""
@@ -48,12 +48,15 @@ class ServerController:
         print("Safe to kill process")
         exit()
 
-
     def generate_uuid(self) -> str:
-        """Generate a random UUID."""
+        """Generates a UUID (universally unique identifier) to be used throughout the program"""
+        return str(uuid.uuid4())
+
+    def generate_uuid_for_connection(self) -> str:
+        """Generate a random UUID that isn't in use for active connections."""
         uuid : str = ""
         while not uuid or uuid in self.__active_connection_uuids:
-            uuid = str(random.randint(1000000000000,10000000000000-1))
+            uuid = self.generate_uuid()
 
         return uuid     
 

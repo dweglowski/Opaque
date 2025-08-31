@@ -222,7 +222,7 @@ class WebsocketServerController:
                 return False, None
             
             # return a UUID
-            uuid : str = self.__server_callback.generate_uuid()
+            uuid : str = self.__server_callback.generate_uuid_for_connection()
 
             # TODO send client secret not uuid
             response : TYPE_JSON = {

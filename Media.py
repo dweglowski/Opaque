@@ -3,14 +3,16 @@ import re
 import os.path
 import PIL.Image
 import io
-import random
 
 
 class MediaController:
     """Used to access media files stored on the computer"""
-    def __init__(self) -> None:
+    def __init__(self, uuid_generator : typing.Callable[[],str]) -> None:
         self.__PROFILE_PICTURES_FOLDER : str = "MediaStorage/Images/ProfilePictures/Unencrypted/"
         self.__POST_PICTURES_FOLDER : str = "MediaStorage/Images/Posts/Unencrypted/"
+
+        # callback function to generate a uuid
+        self.__uuid_generator : typing.Callable[[],str] = uuid_generator
 
  
     def __sanitize_uuid(self, uuid : str) -> str:
@@ -38,7 +40,7 @@ class MediaController:
         """Generates a random uuid for profile picture."""
 
         while True:
-            uuid : str = str(random.randint(1000000000000,10000000000000-1))
+            uuid : str = self.__uuid_generator()
 
             if not self.__profile_picture_exists(uuid):
                 return uuid     
@@ -96,7 +98,7 @@ class MediaController:
         """Generates a random uuid for post picture."""
 
         while True:
-            uuid : str = str(random.randint(1000000000000,10000000000000-1))
+            uuid : str = self.__uuid_generator()
 
             if not self.__post_picture_exists(uuid):
                 return uuid     

@@ -375,7 +375,7 @@ class UI {
         message_container.appendChild(to_text);
 
         
-        var images = [...content.matchAll(/\{\{picture:(\d+)\}\}/g)];
+        var images = [...content.matchAll(/\{\{picture:(\w+)\}\}/g)];
         
         for (var i = 0; i < images.length; i++) {
 
@@ -387,7 +387,7 @@ class UI {
             message_container.appendChild(img);
         }
 
-        content = content.replace(/\{\{picture:\d+\}\}/g,"");
+        content = content.replace(/\{\{picture:\w+\}\}/g,"");
 
 
         var content_text = document.createElement("p");

@@ -16,8 +16,8 @@ class MediaController:
 
  
     def __sanitize_uuid(self, uuid : str) -> str:
-        """Ensures a uuid is made purely of numeric chars, prevents attacks such as path traversal."""
-        return re.sub("[^0-9]*","",uuid)
+        """Ensures a uuid is made purely of alphanumeric chars, prevents attacks such as path traversal."""
+        return re.sub("[^0-9A-Za-z]*","",uuid)
 
     def __profile_picture_exists(self, uuid : str) -> bool:
         return os.path.isfile(self.__PROFILE_PICTURES_FOLDER + uuid + ".png")

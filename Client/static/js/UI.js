@@ -29,7 +29,7 @@ class UI {
     #user_search_open_btn;
     #user_search_container;
     #user_search_username;
-    // #user_search_username;
+    #user_search_suggestions_container;
     #user_search_send_btn;
     #user_search_result_container;
     #user_search_result_close_btn;
@@ -226,7 +226,7 @@ class UI {
         this.#MainContainer.style.filter="blur(5px)";
 
         this.#user_search_username = document.getElementById("SearchUsername");
-        this.#user_search_username = document.getElementById("SearchUsername");
+        this.#user_search_suggestions_container = document.getElementById("UserSearchSuggestionsResult");
 
         this.#user_search_username.addEventListener("input", this.request_username_suggestions.bind(this));
     }
@@ -237,9 +237,12 @@ class UI {
     }
 
     username_suggestions_results(results){
-        //UserSearchSuggestions
-        // var username = this.#user_search_username.value;
-        // this.#client_controller_callback.user_search_suggestions(username);
+        this.#user_search_suggestions_container.innerHTML = "";
+        results.forEach(user => {
+            var p = document.createElement('p');
+            p.textContent = user;
+            this.#user_search_suggestions_container.appendChild(p);
+        });
     }
     
     

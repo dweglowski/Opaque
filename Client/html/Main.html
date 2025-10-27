@@ -68,8 +68,11 @@
         <div id="UserSearchPopup" style="position: absolute; width:50%; height:40%; top:30%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;display: none;background-color: white;">
             <h2>User search:</h2>
             <label for="SearchUsername">Username:</label><br>
-            <input type="text" id="SearchUsername" name="SearchUsername" placeholder="Username" pattern="[a-zA-Z0-9_]{3,25}"></input><br><br>
-            <br><br>
+            <input type="text" id="SearchUsername" name="SearchUsername" placeholder="Username" pattern="[a-zA-Z0-9_]{3,25}"></input><br>
+            <div id="UserSearchSuggestionsResult">
+                
+            </div>
+            <br>
             <button id="UserSearchSend" style="padding-left: 75px;padding-right: 75px;padding-top: 10px;padding-bottom: 10px;">Go</button>
         </div>
         <div id="UserSearchResultPopup" style="position: absolute; width:50%; height:60%; top:20%; left:25%; border: 3px black solid; border-radius: 10px;text-align: center;display: none;background-color: white;">

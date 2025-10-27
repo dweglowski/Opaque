@@ -66,7 +66,8 @@ class DatabaseInterfaceBase:
             raise ValueError("Invalid column name")
         if primaryKey not in self.COLUMNS:
             raise ValueError("Invalid column name")
-        self.__db_cursor.execute(f'UPDATE {self.TABLE_NAME} SET "{column}" = ? WHERE "{primaryKey}" = ?', (value, primaryKeyValue))
+
+        self.__db_cursor.execute(f'UPDATE {self.TABLE_NAME} SET "{column}" = ? WHERE "{primaryKey}" = ?', (value, primaryKey))
         self.__db.commit()
     
     def _update_condition(self, column : str, value : str, primaryKey : str, primaryKeyValue : str, conditionColumn : str, conditionValue : str) -> None:
@@ -150,12 +151,16 @@ class LoginsDatabaseInterface(DatabaseInterfaceBase):
     def __init__(self) -> None:
         super().__init__()
 
-    def check_username_exists(self, username : str) -> bool:
-        """Checks whether a username is in database."""
-        # get all usernames matching requested username
-        valid_unames : typing.List[typing.Tuple[str]] = self._read_columns_condition(["username"],"username",username)
-        
-        return len(valid_unames) > 0
+    # def check_username_exists(self, username : str) -> bool:
+    #     """Checks whether a username is in database."""
+    #     # get all usernames matching requested username
+    #     valid_unames : typing.List[typing.Tuple[str]] = self._read_columns_condition(["username"],"username",username)
+    #     return len(valid_unames) > 0
+    
+    def get_username_list(self) -> typing.List[str]:
+        """Returns all usernames in the database for the server to process."""
+        usernames : typing.List[typing.Tuple[str]] = self._read_columns(["username"])
+        return [record[0] for record in usernames]
 
     def get_salt(self, username : str) -> str:
         """Returns the password salt for a specific user"""
@@ -239,6 +244,7 @@ class DatabaseController:
     def get_posts(self) -> TYPE_POSTS:
         """Returns the full content of the posts database."""
         posts_raw : typing.List[typing.Tuple[str, str, str]] = self.__posts_db.read_posts()
+        # print(posts_raw)
         posts : TYPE_POSTS = []
         for post in posts_raw:
             json_post = {
@@ -260,10 +266,14 @@ class DatabaseController:
 
 
 
-    def check_username_exists(self, username : str) -> bool:
-        """Checks whether a username is in login database."""
-        username = username.lower()
-        return self.__logins_db.check_username_exists(username)
+    # def check_username_exists(self, username : str) -> bool:
+    #     """Checks whether a username is in login database."""
+    #     username = username.lower()
+    #     return self.__logins_db.check_username_exists(username)
+
+    def get_username_list(self) -> typing.List[str]:
+        """Returns a list of all registered usernames."""
+        return self.__logins_db.get_username_list()
     
     def get_password_salt(self, username : str) -> str:
         """Returns the hash salt for a specific username."""

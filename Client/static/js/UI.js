@@ -1,6 +1,3 @@
-
-
-
 export {UI};
 
 class UI {
@@ -32,6 +29,7 @@ class UI {
     #user_search_open_btn;
     #user_search_container;
     #user_search_username;
+    // #user_search_username;
     #user_search_send_btn;
     #user_search_result_container;
     #user_search_result_close_btn;
@@ -229,7 +227,21 @@ class UI {
 
         this.#user_search_username = document.getElementById("SearchUsername");
         this.#user_search_username = document.getElementById("SearchUsername");
+
+        this.#user_search_username.addEventListener("input", this.request_username_suggestions.bind(this));
     }
+
+    request_username_suggestions(){
+        var username = this.#user_search_username.value;
+        this.#client_controller_callback.user_search_suggestions(username);
+    }
+
+    username_suggestions_results(results){
+        //UserSearchSuggestions
+        // var username = this.#user_search_username.value;
+        // this.#client_controller_callback.user_search_suggestions(username);
+    }
+    
     
     #user_search(username){
         this.#client_controller_callback.user_search(username);
@@ -353,7 +365,6 @@ class UI {
         var users_to = post["to"];
         var content = post["content"];
         this.#display_post(user_from, user_from_display_name, users_to, content);
-
 
         this.#posts_container.scrollTop = this.#posts_container.scrollHeight;
     

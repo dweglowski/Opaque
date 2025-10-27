@@ -1,0 +1,236 @@
+"""A collection of datastructures used throughout the program"""
+
+import typing
+
+class Queue:
+    """Custom implementation of a queue, FIFO datastructure"""
+    def __init__(self) -> None:
+        self.__list = [] # temporary logic, to be replaced later
+
+    def __len__(self) -> int:
+        return len(self.__list)
+    
+    def is_empty(self) -> bool:
+        """Returns if queue has no items."""
+        return len(self) == 0
+    
+    def clear(self) -> None:
+        """Clears the queue, removing all items."""
+        while not self.is_empty():
+            self.dequeue()
+    
+    def enqueue(self, item: typing.Any) -> None:
+        """Adds a new item to the end of the queue."""
+        self.__list.append(item)
+
+    def dequeue(self) -> typing.Any:
+        """Removes an item from the front of the queue and returns it."""
+        return self.__list.pop(0)
+    
+class Stack:
+    """Custom implementation of a stack, LIFO datastructure"""
+    def __init__(self) -> None:
+        self.__list = [] # temporary logic, to be replaced later
+
+    def __len__(self) -> int:
+        return len(self.__list)
+    
+    def is_empty(self) -> bool:
+        """Returns if stack has no items."""
+        return len(self) == 0
+    
+    def clear(self) -> None:
+        """Clears the stack, removing all items."""
+        while not self.is_empty():
+            self.pop()
+    
+    def push(self, item: typing.Any) -> None:
+        """Adds a new item to the top of the stack."""
+        self.__list.append(item)
+
+    def pop(self) -> typing.Any:
+        """Removes an item from the top of the stack and returns it."""
+        return self.__list.pop()
+    
+
+
+class Trie:
+    """Custom implementation of a trie."""
+    def __init__(self, symbols : typing.List[str]) -> None:
+        self.__valid_symbols : typing.List[str] = symbols
+        
+        self.__root = _TrieNode("",False,self.__valid_symbols)
+
+    def add_string(self, string : str) -> None:
+        """Adds a new string to the trie."""
+        node : _TrieNode = self.__root
+        child_node : _TrieNode = None
+        letter : str
+        for letter in string:
+            child_node = node.get_child(letter)
+
+            # if the node has no children under that branch, create a new child and add it
+            if child_node is None:
+                child_node = _TrieNode(letter, False, self.__valid_symbols)
+                node.add_child(letter, child_node)
+            
+            node = child_node
+
+        # set the last node to a final node since it represents the string provided
+        node.set_valid_end()
+
+    def check_string_exists(self, string : str) -> bool:
+        """Goes through the trie and checks whether a specific string is stored within."""
+        node : _TrieNode = self.__root
+        child_node : _TrieNode = None
+        letter : str
+        for letter in string:
+            child_node = node.get_child(letter)
+
+            # if the node has no children under that branch, the string is deffinitly invalid
+            if child_node is None:
+                return False
+            
+            node = child_node
+    
+        # check if the last node to a final node since if it is, the string that reaches it is valid
+        if node.is_valid_end():
+            return True
+
+        return False            
+    
+    def get_all_endings_from_node(self, start_node : typing.Self, max_num : int = -1) -> typing.List[str]:
+        """Iterates over all possible endings from a specific node, ordered alphabetically."""
+        reversed_symbols = self.__valid_symbols[::-1]
+
+        matches : typing.List[str] = []
+
+        stack : Stack[typing.Tuple[_TrieNode, str]] = Stack()
+
+        stack.push((start_node, ""))
+
+        num_found : int = 0
+
+        while not stack.is_empty() and (max_num == -1 or num_found < max_num):
+            node : _TrieNode
+            string_before : str
+            node, string_before = stack.pop()
+
+            string_before = string_before + node.get_symbol()
+
+            if node.is_valid_end():
+                matches.append(string_before)
+                num_found += 1
+
+            for symbol in reversed_symbols:
+                newNode : _TrieNode = node.get_child(symbol)
+                if newNode is None:
+                    continue
+
+
+                # add to search
+                stack.push((newNode, string_before))
+
+        return matches
+
+
+    def get_all_endings(self, string : str, max_num : int = -1) -> typing.List[str]:
+
+        matches : typing.List[str] = []
+
+        node : _TrieNode = self.__root
+        child_node : _TrieNode = None
+        letter : str
+        for letter in string:
+            child_node = node.get_child(letter)
+            # if the node has no children under that branch, the start is invalid
+            if child_node is None:
+                return matches
+            
+            node=child_node
+    
+        # check if the last node to a final node since if it is, the string is already valid so add to matches
+        # if node.is_valid_end():
+        #     matches.append(string)
+
+        for ending in self.get_all_endings_from_node(node, max_num):
+            if len(ending) > 0 and len(string) > 0:
+                ending = ending[1:]
+            matches.append(string + ending)
+
+        return matches
+        
+            
+
+
+class _TrieNode:
+    """Node used for implementation of a trie."""
+    def __init__(self, symbol : str, is_valid_end : bool, symbols : typing.List[str]):
+        self.__symbol : str = symbol # stores the character this node represents
+        self.__is_valid_end : bool = is_valid_end # stores whether this node represents the end of a valid string
+
+        self.__valid_symbols : typing.List[str] = symbols
+
+        self.__children : typing.Dict[str, typing.Self] = {s : None for s in symbols} # reference to each child, starts with none
+
+    def get_symbol(self) -> str:
+        return self.__symbol
+
+    def get_child(self, symbol : str) -> typing.Self:
+        """Returns a reference to a child node down the branch that represents the symbol requested."""
+        return self.__children[symbol]
+    
+    def is_valid_end(self) -> bool:
+        """Returns whether this node marks the end to a valid string (doesn't mean that it has no more children)"""
+        return self.__is_valid_end
+    
+    def set_valid_end(self) -> None:
+        """Marks the node as a valid end to the trie."""
+        self.__is_valid_end = True
+    
+    def add_child(self, symbol : str, node : typing.Self) -> None:
+        """Adds a new child into the sub branch for that symbol."""
+        self.__children[symbol] = node
+    
+        
+            
+
+
+class _GraphNode:
+    """Node used for implementation of a graph."""
+    def __init__(self, name : str):
+        self.__name : str = name # stores the name this node represents
+
+        self.__connections: typing.List[str] = [] # username of any connection
+
+    def get_name(self) -> str:
+        return self.__name
+
+    
+    
+    def add_connection(self, symbol : str, node : typing.Self) -> None:
+        """Adds a new child into the sub branch for that symbol."""
+        self.__children[symbol] = node
+
+    def get_connections(self) -> typing.List[str]:
+        """Returns a list of all usernames """
+        return self.__connections
+
+
+class Graph:
+    """Custom implementation of a graph."""
+    def __init__(self) -> None:
+        
+        # map between username and a node representing them in the graph
+        self.__nodes : typing.Dict[str,_GraphNode] = {}
+
+    def add_user(self, username : str, friends : typing.List[str] = [], following : typing.List[str] = []) -> None:
+        """Adds a new string to the trie."""
+        return
+
+         
+    
+    def get_all_friends_from_node(self, start_node : _GraphNode) -> typing.List[str]:
+        # """Iterates over all possible endings from a specific node, ordered alphabetically."""
+        pass
+

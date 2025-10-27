@@ -149,6 +149,13 @@ class Client {
         this.#ui.display_profile_picture_icon(pictureid);
     }
 
+    user_search_suggestions(username){
+        this.#api.get_user_search_suggestions(username);
+    }
+    user_search_suggestions_results(results){
+        this.#ui.username_suggestions_results(results);
+    }
+
     user_search(username){
         this.#api.user_search(username);
     }

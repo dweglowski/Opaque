@@ -136,6 +136,10 @@ class SocketAPI {
                     var pictureid = data["pictureid"]
                     this.#client_controller_callback.recived_profile_info(username, display_name, pictureid);
                     break;
+                case "UserSearchSuggestions":
+                    var suggestions = json["data"];
+                    this.#client_controller_callback.user_search_suggestions_results(suggestions);
+                    break;
                 case "UserSearch":
                     success = json["success"];
                     if (success){
@@ -229,6 +233,20 @@ class SocketAPI {
 
         this.#send_data(JSON.stringify(request_json))
         
+    }
+    
+    /** Requests suggestions for user search. */
+    get_user_search_suggestions(username){
+        
+        var request_json = {
+            "action":"command",
+            "command":"UserSearchSuggestions",
+            "csec":this.#client_secret,
+            "username": username,
+        };
+    
+        this.#send_data(JSON.stringify(request_json))
+
     }
     
     /** Start a user search. */

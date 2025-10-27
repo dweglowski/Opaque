@@ -6,6 +6,8 @@ import time
 import re
 import uuid
 
+from Datastructures import Trie
+
 # Define custom type hints
 from ServerUtils import TYPE_POST, TYPE_POSTS
 
@@ -27,6 +29,10 @@ class ServerController:
         # storage for users subscribed to posts feed and their "send post to client" callback
         self.__post_feed_subscribers : typing.Dict[str, typing.Callable[[TYPE_POST], None]] = {}
 
+        # store all usernames in a quickly searchable way
+        self.__username_trie : Trie = Trie("abcdefghijklmnopqrstuvwxyz0123456789_")
+        self.__load_usernames()
+
 
     def __init_web_server(self) -> None:
         """Initialise the webserver and all logic that should be done to achive this."""
@@ -39,6 +45,14 @@ class ServerController:
     def __init_media(self) -> None:
         """Initialise the media controller and all logic that should be done to achive this."""
         self.__media : Media.MediaController = Media.MediaController(self.generate_uuid)
+
+    def __load_usernames(self) -> None:
+        """Loads all username into the trie."""
+        usernames : typing.List[str] = self.__database.get_username_list()
+        
+        username : str
+        for username in usernames:
+            self.__add_user_to_trie(username)
 
     def start(self) -> None:
         """Starts the server running."""
@@ -92,14 +106,13 @@ class ServerController:
     def get_username(self, uuid : str) -> str:
         """Gets a client's username from session storage."""
         return self.__uuid_session_storage[uuid]["username"]
-    
 
     def get_password_salt(self, username: str, uuid: str) -> str:
         """Provides a hashing salt for a specific user"""
         # sanitize
         username = re.sub("[^a-zA-Z0-9_]","", username.lower())
-        
-        if not self.__database.check_username_exists(username):
+
+        if not self.__check_username_exists(username):
             return ""
 
         return self.__database.get_password_salt(username)
@@ -109,10 +122,10 @@ class ServerController:
         """Attempts to login a client, returns success, error code."""
         # sanitize
         username = re.sub("[^a-zA-Z0-9_]","", username.lower())
-        
-        if not self.__database.check_username_exists(username):
+
+        if not self.__check_username_exists(username):
             return False, "InvalidUsername"
-        
+
         # TODO: auth system
         if not self.__database.check_password_matches(hash, username):
             return False, "InvalidPassword"
@@ -127,12 +140,13 @@ class ServerController:
         username = re.sub("[^a-zA-Z0-9_]","", username.lower())
         display_name = re.sub("[^a-zA-Z0-9_ ]","", display_name.lower())
 
-        if self.__database.check_username_exists(username):
+        if self.__check_username_exists(username):
             return False, "InvalidUsername"
-        
+
 
         self.__database.add_new_signup(username, hash, salt)
         self.__database.add_new_profile(username, display_name)
+        self.__username_trie.add_string(username)
 
         self.__set_username(username, uuid)
 
@@ -141,16 +155,25 @@ class ServerController:
     def is_logged_in(self, uuid: str) -> bool:
         """Returns whether a user session has logged in."""
         return self.__uuid_session_storage[uuid]["username"] != "#anonymous_user"
-    
+
+    def __add_user_to_trie(self, username : str) -> None:
+        """Adds a new username to the trie to quickly search for users."""
+        print("adding ", username)
+        self.__username_trie.add_string(username)
+
+    def __check_username_exists(self, username : str) -> bool:
+        username = username.lower()
+        return self.__username_trie.check_string_exists(username)
+
     def profile_get_display_name(self, username : str) -> str:
         """Returns the display name of a user."""
         return self.__database.profile_get_displayname(username)
-    
+
     def profile_get_profile_pictureid(self, username : str) -> str:
         """Returns the uuid for a user's profile picture."""
         pictureid : str = self.__database.profile_get_pictureid(username)
         return re.sub("[^0-9]*","", pictureid) # sanitize first
-    
+
     def get_profile_info(self, uuid:str) -> typing.Dict[str, str]:
         username : str = self.get_username(uuid)
 
@@ -163,12 +186,12 @@ class ServerController:
                 "pictureid":pictureID,
             }
         return result
-    
+
     def user_search(self, username : str) -> typing.Tuple[bool, typing.Dict[str,str]]:
         """Tries to find a user by username and returns basic info."""
-        if not self.__database.check_username_exists(username):
+        if not self.__check_username_exists(username):
             return False, {}
-        
+
         display_name : str = self.__database.profile_get_displayname(username)
         pictureID : str = self.__database.profile_get_pictureid(username)
 
@@ -180,12 +203,19 @@ class ServerController:
 
         return True, resp
 
+    def user_search_suggestions(self, start_username : str) -> typing.List[str]:
+        """Returns a list of the first N usernames which start with the string provided."""
+
+        usernames : typing.List[str] = self.__username_trie.get_all_endings(start_username, max_num=5)
+
+        return usernames
+
 
 
     def get_posts(self) -> TYPE_POSTS:
         """Gets and returns all posts from database."""
         return self.__database.get_posts()
-    
+
     def subscribe_client_to_posts_feed(self, uuid : str, send_post_to_client_callback : typing.Callable[[TYPE_POST], None]) -> None:
         """Subscribes a client to a posts feed to recieve event update messages for each new post."""
         self.__post_feed_subscribers[uuid] = send_post_to_client_callback
@@ -197,20 +227,20 @@ class ServerController:
         users_to : str = ""
         if post["to"] == "@all" or client_username in post["to"].split("@"):
             return True
-        
+
         return False
-    
+
     def send_existing_posts_to_client(self, uuid : str) -> str:
         """Sends all relevant existing posts to a client"""
         all_posts : TYPE_POSTS = self.get_posts()
-        
+
         send_post_to_client_callback : typing.Callable[[TYPE_POST], None] = self.__post_feed_subscribers[uuid]
 
         for post in all_posts:
             # only posts that are shared with user
             if self.__validate_post_is_for_client(post, uuid):
                 send_post_to_client_callback(post)
-    
+
 
     def __send_new_post_to_relevant_users(self, post : TYPE_POST) -> None:
         """Sends a newly added post to all relevant active clients."""
@@ -236,7 +266,7 @@ class ServerController:
         post["from"] = username
 
         self.__database.add_post(post)
-    
+
         # ensure all clients recive this message
         self.__send_new_post_to_relevant_users(post)
 
@@ -246,24 +276,24 @@ class ServerController:
     def get_profile_picture(self, uuid : str) -> bytes:
         """Finds and returns a profile picture stored on the server."""
         return self.__media.get_profile_picture(uuid)
-    
+
     def upload_profile_picture(self, raw_data) -> str:
         """Uploads a new profile picture, returns the uuid."""
         return self.__media.upload_profile_picture(raw_data)
-    
+
     def update_profile_picture(self, uuid, pictureUUID) -> None:
         username : str = self.get_username(uuid)
         self.__database.update_profile_picture(username, pictureUUID)
-    
+
     def get_post_picture(self, uuid : str) -> bytes:
         """Finds and returns a post picture stored on the server."""
         return self.__media.get_post_picture(uuid)
-    
+
     def upload_post_picture(self, raw_data) -> str:
         """Uploads a new post picture, returns the uuid."""
         return self.__media.upload_post_picture(raw_data)
 
-    
+
 
 if __name__ == "__main__":
     Server : ServerController = ServerController()

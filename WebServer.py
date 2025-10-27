@@ -9,6 +9,7 @@ import flask
 import werkzeug.datastructures
 import websockets.asyncio
 import websockets.asyncio.server
+from Datastructures import Queue
 
 
 
@@ -238,7 +239,7 @@ class WebsocketServerController:
 
         except:
             return False, None
-        
+
     def handle_client_disconnect(self, uuid : str) -> None:
         """Logic called when a client disconnects."""
         print(uuid,"disconnected")
@@ -269,8 +270,8 @@ class WebsocketServer:
         self.__connected : bool = True
 
         # create message queue for processing data in and data out
-        self.__queue_data_out : typing.List[str] = []
-        self.__queue_data_in : typing.List[str] = []
+        self.__queue_data_out : Queue[str] = Queue()
+        self.__queue_data_in : Queue[str] = Queue()
 
     async def start_listening_to_client(self) -> None:
         """Start revice and send mainloops for communicating with client."""
@@ -282,7 +283,7 @@ class WebsocketServer:
 
     async def __receive_data(self) -> None:
         async for message in self.__websocket:
-            self.__queue_data_in.append(message)
+            self.__queue_data_in.enqueue(message)
 
         # client disconnected once loop exited
         self.__handle_disconnect()
@@ -294,12 +295,12 @@ class WebsocketServer:
                 await asyncio.sleep(0.1)
                 continue
             
-            data : str = self.__queue_data_out.pop(0)
+            data : str = self.__queue_data_out.dequeue()
             await self.__websocket.send(data)
 
     def __send_response(self, data : str) -> None:
         """Adds data to a the outbound send queue."""
-        self.__queue_data_out.append(data)
+        self.__queue_data_out.enqueue(data)
 
     def __handle_disconnect(self) -> None:
         """Called when the cleint disconnects, stops all loops."""
@@ -320,7 +321,7 @@ class WebsocketServer:
                 await asyncio.sleep(1)
                 continue
 
-            json_data : str = self.__queue_data_in.pop(0)
+            json_data : str = self.__queue_data_in.dequeue()
 
             self.__handle_client_request(json_data)
 
@@ -567,6 +568,27 @@ class WebsocketServer:
 
         self.__send_response(json.dumps(response_json))
 
+    def __handle_user_search_suggestions(self, json_data : typing.Dict) -> None:
+        """Logic to handle providing suggestions for user search"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+        
+        partial_username = json_data["username"]
+
+        potential_usernames: typing.List[str] = self.__server_callback.user_search_suggestions(partial_username)
+
+        response_json = {
+            "action":"result",
+            "command":"UserSearchSuggestions",
+            "data":potential_usernames,
+        }
+
+
+        self.__send_response(json.dumps(response_json))
+
     def __handle_client_request(self, data : str) -> None:
         """Handles a single request from a client.
         Takes in data and uuid.
@@ -612,6 +634,10 @@ class WebsocketServer:
                         
                         self.__handle_user_search(json_data)
 
+                    case "UserSearchSuggestions":
+                        
+                        self.__handle_user_search_suggestions(json_data)
+
             elif action == "subscribe":
 
                 feed : str = json_data["feed"]
@@ -623,5 +649,3 @@ class WebsocketServer:
         except Exception as e:
             print(e)
             return '{"action":"error", "reason":"Malformed request"}'
-
-    

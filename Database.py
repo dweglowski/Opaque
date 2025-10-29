@@ -42,6 +42,17 @@ class DatabaseInterfaceBase:
         columns_str : str = ", ".join([f"\"{col}\"" for col in columns]) # generate sql str
 
         return self.__db_cursor.execute(f'SELECT {columns_str} FROM {self.TABLE_NAME} WHERE "{conditionColumn}" = ?', (conditionValue,)).fetchall()
+
+    def _check_record_exists_with_primary_keys(self, k1 : str, k1Value : str, k2 : str, k2Value : str) -> bool:
+        """Tests whether a specific record exists using a compound primary key"""
+
+        if k1 not in self.COLUMNS:
+            raise ValueError("Invalid column name")
+        
+        if k2 not in self.COLUMNS:
+            raise ValueError("Invalid column name")
+
+        return len(self.__db_cursor.execute(f'SELECT {k1} FROM {self.TABLE_NAME} WHERE "{k1}" = ? AND "{k2}" = ?', (k1Value, k2Value)).fetchall()) != 0
     
     def _insert(self, columns : typing.List[str], values : typing.List[str]) -> None:
         """Takes a list of columns and values and inserts it into the table, if column not provides, sql will init it"""
@@ -68,6 +79,19 @@ class DatabaseInterfaceBase:
             raise ValueError("Invalid column name")
 
         self.__db_cursor.execute(f'UPDATE {self.TABLE_NAME} SET "{column}" = ? WHERE "{primaryKey}" = ?', (value, primaryKey))
+        self.__db.commit()
+    
+    def _update_by_compund_key(self, column : str, value : str, k1 : str, k1Value : str, k2 : str, k2Value : str) -> None:
+        """Updates the value of a column with a compound primary key"""
+        
+        if column not in self.COLUMNS:
+            raise ValueError("Invalid column name")
+        if k1 not in self.COLUMNS:
+            raise ValueError("Invalid column name")
+        if k2 not in self.COLUMNS:
+            raise ValueError("Invalid column name")
+
+        self.__db_cursor.execute(f'UPDATE {self.TABLE_NAME} SET "{column}" = ? WHERE "{k1}" = ? AND "{k2}" = ?', (value, k1Value, k2Value))
         self.__db.commit()
     
     def _update_condition(self, column : str, value : str, primaryKey : str, primaryKeyValue : str, conditionColumn : str, conditionValue : str) -> None:
@@ -228,6 +252,67 @@ class ProfileDatabaseInterface(DatabaseInterfaceBase):
     def edit_displayname(self, username : str, new_displayname: str) -> None:
         """Edits the displayname of a user"""
         self._update("displayname",new_displayname,"username",username)
+
+
+
+class ConnectionsDatabaseInterface(DatabaseInterfaceBase):
+    """Extends DatabaseInterfaceBase for accessing the conenctions database.
+
+    Columns:
+        PRIMARY KEY (username, user_connected)
+
+        username:
+            TEXT PRIMARY KEY
+            INSERT and READ ONLY
+        user_connected:
+            TEXT
+            INSERT and READ
+            WRITE if username matches client
+        isFriend:
+            INTIGER
+            INSERT and READ
+            WRITE if username matches client
+        isFollowing:
+            INTIGER
+            INSERT and READ
+            WRITE if username matches client
+    """
+
+    DATABASE_NAME = "Connections"
+    TABLE_NAME = "Connections"
+    COLUMNS = ["username","user_connected","isFriend","isFollowing"]
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def get_all_connections(self) -> typing.List[typing.Tuple[str,str,bool,bool]]:
+        """Returns all connections in the form Username, User_Connected, Is_Friend, Is_Following"""
+        return self._read_columns(["username","user_connected","isFriend","isFollowing"])
+
+    def __check_connection_already_exists(self, username : str, connected_user : str) -> bool:
+        return self._check_record_exists_with_primary_keys("username", username, "user_connected", connected_user)
+    
+    def add_connection(self, username : str, connected_user: str, friend : bool = False, follow : bool = False) -> None:
+        """Adds a new connection or modifies an existing record to show a connection between 2 users, only adds connection types, does not remove previous connection"""
+        if not self.__check_connection_already_exists(username,connected_user):
+            self._insert(["username", "user_connected", "isFriend", "isFollowing"],[username, connected_user, False, False])
+
+        if friend:
+            self._update_by_compund_key("isFriend",1,"username",username,"user_connected",connected_user)
+            
+        if follow:
+            self._update_by_compund_key("isFollowing",1,"username",username,"user_connected",connected_user)
+
+    def remove_connection(self, username : str, connected_user: str, friend : bool = False, follow : bool = False) -> None:
+        """Modifies an existing record to remove a connection between 2 users, remove if flag set high"""
+        if not self.__check_connection_already_exists(username,connected_user):
+            return
+
+        if friend:
+            self._update_by_compund_key("isFriend",0,"username",username,"user_connected",connected_user)
+
+        if follow:
+            self._update_by_compund_key("isFollowing",0,"username",username,"user_connected",connected_user)
         
 
 
@@ -238,6 +323,7 @@ class DatabaseController:
         self.__posts_db : PostsDatabaseInterface = PostsDatabaseInterface()
         self.__logins_db : LoginsDatabaseInterface = LoginsDatabaseInterface()
         self.__profiles_db : ProfileDatabaseInterface = ProfileDatabaseInterface()
+        self.__connections_db : ConnectionsDatabaseInterface = ConnectionsDatabaseInterface()
 
 
 
@@ -264,12 +350,6 @@ class DatabaseController:
         content: str = post["content"]
         self.__posts_db.add_post(owner, users_to, content)
 
-
-
-    # def check_username_exists(self, username : str) -> bool:
-    #     """Checks whether a username is in login database."""
-    #     username = username.lower()
-    #     return self.__logins_db.check_username_exists(username)
 
     def get_username_list(self) -> typing.List[str]:
         """Returns a list of all registered usernames."""
@@ -301,7 +381,20 @@ class DatabaseController:
         """Updates the pictureid with a uuid pointing to an uploaded profile picture"""
         self.__profiles_db.edit_pictureid(username, pictureUUID)
     
-        
+
+    def get_all_connections(self) -> typing.List[typing.Tuple[str,str,bool,bool]]:
+        """Returns all connections in the form Username, User_Connected, Is_Friend, Is_Following"""
+        return self.__connections_db.get_all_connections()
+    
+    def add_connection(self, username : str, connected_user: str, friend : bool = False, follow : bool = False) -> None:
+        """Adds a new connection between 2 users"""
+        self.__connections_db.add_connection(username, connected_user, friend, follow)
+
+    def remove_connection(self, username : str, connected_user: str, friend : bool = False, follow : bool = False) -> None:
+        """Removes an existing connection between 2 users"""
+        self.__connections_db.remove_connection(username, connected_user, friend, follow)
+
+
     def close(self) -> None:
         """Safely closes all databases"""
         self.__posts_db.close()

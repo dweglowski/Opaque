@@ -9,6 +9,7 @@ import flask
 import werkzeug.datastructures
 import websockets.asyncio
 import websockets.asyncio.server
+from hashlib import sha256
 from Datastructures import Queue
 
 
@@ -142,7 +143,7 @@ class WebsocketServerController:
 
     SERVER_IP = "localhost"
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.4"
+    PROTOCOL_VERSION = "1.5"
 
 
 
@@ -224,12 +225,14 @@ class WebsocketServerController:
             
             # return a UUID
             uuid : str = self.__server_callback.generate_uuid_for_connection()
+            
+            # sets the client secret to a hash of the uuid to prevent exposing internal uuid to client
+            client_secret : str = sha256(uuid.encode()).hexdigest()
 
-            # TODO send client secret not uuid
             response : TYPE_JSON = {
                 "action" : "handshake",
                 "result" : "success",
-                "client_secret" : uuid,
+                "client_secret" : client_secret,
             }
 
             await client.send(json.dumps(response))
@@ -327,8 +330,7 @@ class WebsocketServer:
 
     def __validate_session(self, client_secret : str) -> bool:
         """Used to ensure that the client matches their session's uuid."""
-        # TODO: change to keeping uuid private and checking client secret matches stored data about uuid
-        if client_secret == self.__uuid:
+        if client_secret == sha256(self.__uuid.encode()).hexdigest():
             return True
         else:
             return False
@@ -556,7 +558,7 @@ class WebsocketServer:
 
         success: bool
         user_info: typing.Dict[str,str] 
-        success, user_info = self.__server_callback.user_search(username)
+        success, user_info = self.__server_callback.user_search(self.__uuid, username)
 
         response_json = {
             "action":"result",
@@ -586,6 +588,27 @@ class WebsocketServer:
             "data":potential_usernames,
         }
 
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_user_add_connection(self, json_data : typing.Dict) -> None:
+        """Logic to handle adding and removing connections between users"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+        
+        connected_username : str = json_data["username"]
+        connection_type : str = json_data["type"]
+        add : bool = json_data["add"]
+
+        self.__server_callback.handle_user_add_connection(self.__uuid, connected_username, connection_type, add)
+
+        response_json = {
+            "action":"result",
+            "command":"AddUserConnection",
+            "success":True,
+        }
 
         self.__send_response(json.dumps(response_json))
 
@@ -637,6 +660,10 @@ class WebsocketServer:
                     case "UserSearchSuggestions":
                         
                         self.__handle_user_search_suggestions(json_data)
+
+                    case "AddUserConnection":
+                        
+                        self.__handle_user_add_connection(json_data)
 
             elif action == "subscribe":
 

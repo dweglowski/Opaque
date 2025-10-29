@@ -33,6 +33,7 @@ class UI {
     #user_search_send_btn;
     #user_search_result_container;
     #user_search_result_close_btn;
+    #user_search_username_viewed;
 
     #posts_container;
 
@@ -205,6 +206,11 @@ class UI {
         this.#user_search_open_btn.addEventListener("click", this.#open_user_search.bind(this)); // bind used to preserve "this"
         this.#user_search_send_btn = document.getElementById("UserSearchSend");
         this.#user_search_send_btn.addEventListener("click", this.start_user_search.bind(this));
+        
+        document.getElementById("UserSearchAddFriend").addEventListener("click", this.user_search_add_friend.bind(this));
+        document.getElementById("UserSearchRemoveFriend").addEventListener("click", this.user_search_remove_friend.bind(this));
+        document.getElementById("UserSearchFollow").addEventListener("click", this.user_search_follow.bind(this));
+        document.getElementById("UserSearchUnfollow").addEventListener("click", this.user_search_unfollow.bind(this));
 
 
         
@@ -262,10 +268,33 @@ class UI {
         
         document.getElementById("SearchResultUsername").textContent = result["username"];
         document.getElementById("SearchResultDisplayname").textContent = result["displayname"];
+
+        this.#user_search_username_viewed = result["username"];
         
         var profile_pictureid = result["pictureid"]
         this.#add_image_to_canvas_fixed_size("UserSearchProfilePicture", "/uploads/profile_pictures/"+profile_pictureid+".png", 200, 200);
         
+
+        if (result["isFriend"]){
+            document.getElementById("UserSearchAddFriend").style.display = "none";
+            document.getElementById("UserSearchRemoveFriend").style.display = "block";
+            document.getElementById("UserSearchFollow").style.display = "none";
+            document.getElementById("UserSearchUnfollow").style.display = "none";
+        }
+        else if (result["isFollowed"]){
+            document.getElementById("UserSearchAddFriend").style.display = "block";
+            document.getElementById("UserSearchRemoveFriend").style.display = "none";
+            document.getElementById("UserSearchFollow").style.display = "none";
+            document.getElementById("UserSearchUnfollow").style.display = "block";
+            
+        }
+        else {
+            document.getElementById("UserSearchAddFriend").style.display = "block";
+            document.getElementById("UserSearchRemoveFriend").style.display = "none";
+            document.getElementById("UserSearchFollow").style.display = "block";
+            document.getElementById("UserSearchUnfollow").style.display = "none";
+            
+        }
 
         this.#user_search_result_close_btn = document.getElementById("UserSearchResultClose");
         this.#user_search_result_close_btn.addEventListener("click", this.user_search_result_close.bind(this)); // bind used to preserve "this"
@@ -274,6 +303,39 @@ class UI {
     user_search_result_close(){
         this.#user_search_result_container.style.display="none";
         this.#MainContainer.style.filter="";
+    }
+
+    /** Called when friend button is pressed, uses the stored username of profile viewed to add a connection */
+    user_search_add_friend(){
+        this.#client_controller_callback.add_friend(this.#user_search_username_viewed);
+        document.getElementById("UserSearchAddFriend").style.display = "none";
+        document.getElementById("UserSearchRemoveFriend").style.display = "block";
+        document.getElementById("UserSearchFollow").style.display = "none";
+        document.getElementById("UserSearchUnfollow").style.display = "none";
+    }
+    /** Called when unfriend button is pressed, uses the stored username of profile viewed to add a connection */
+    user_search_remove_friend(){
+        this.#client_controller_callback.remove_friend(this.#user_search_username_viewed);
+        document.getElementById("UserSearchAddFriend").style.display = "block";
+        document.getElementById("UserSearchRemoveFriend").style.display = "none";
+        document.getElementById("UserSearchFollow").style.display = "block";
+        document.getElementById("UserSearchUnfollow").style.display = "none";
+    }
+    /** Called when follow button is pressed, uses the stored username of profile viewed to add a connection */
+    user_search_follow(){
+        this.#client_controller_callback.follow_user(this.#user_search_username_viewed);
+        document.getElementById("UserSearchAddFriend").style.display = "block";
+        document.getElementById("UserSearchRemoveFriend").style.display = "none";
+        document.getElementById("UserSearchFollow").style.display = "none";
+        document.getElementById("UserSearchUnfollow").style.display = "block";
+    }
+    /** Called when unfollow button is pressed, uses the stored username of profile viewed to add a connection */
+    user_search_unfollow(){
+        this.#client_controller_callback.unfollow_user(this.#user_search_username_viewed);
+        document.getElementById("UserSearchAddFriend").style.display = "block";
+        document.getElementById("UserSearchRemoveFriend").style.display = "none";
+        document.getElementById("UserSearchFollow").style.display = "block";
+        document.getElementById("UserSearchUnfollow").style.display = "none";
     }
 
     #open_content_select_menu(){

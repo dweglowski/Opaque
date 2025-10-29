@@ -6,7 +6,7 @@ import time
 import re
 import uuid
 
-from Datastructures import Trie
+from Datastructures import Trie, Graph
 
 # Define custom type hints
 from ServerUtils import TYPE_POST, TYPE_POSTS
@@ -33,6 +33,11 @@ class ServerController:
         self.__username_trie : Trie = Trie("abcdefghijklmnopqrstuvwxyz0123456789_")
         self.__load_usernames()
 
+        # store all connections in a quickly searchable way
+        self.__friend_graph : Graph = Graph()
+        self.__following_graph : Graph = Graph()
+        self.__load_connections()
+
 
     def __init_web_server(self) -> None:
         """Initialise the webserver and all logic that should be done to achive this."""
@@ -53,6 +58,24 @@ class ServerController:
         username : str
         for username in usernames:
             self.__add_user_to_trie(username)
+
+    def __load_connections(self) -> None:
+        """Loads all existing friends and followes into the graph."""
+        # first load usernames into graphs
+        usernames : typing.List[str] = self.__database.get_username_list()
+        username : str
+        for username in usernames:
+            self.__friend_graph.add_user(username)
+            self.__following_graph.add_user(username)
+
+        # load all connections into graph
+        connections : typing.List[typing.Tuple[str,str,bool,bool]] = self.__database.get_all_connections()
+
+        for user, connected_user, isFriend, isFollowing in connections:
+            if isFriend:
+                self.__friend_graph.add_connection(user, connected_user)
+            if isFollowing:
+                self.__following_graph.add_connection(user, connected_user)
 
     def start(self) -> None:
         """Starts the server running."""
@@ -187,7 +210,7 @@ class ServerController:
             }
         return result
 
-    def user_search(self, username : str) -> typing.Tuple[bool, typing.Dict[str,str]]:
+    def user_search(self, uuid : str, username : str) -> typing.Tuple[bool, typing.Dict[str,str]]:
         """Tries to find a user by username and returns basic info."""
         if not self.__check_username_exists(username):
             return False, {}
@@ -195,10 +218,16 @@ class ServerController:
         display_name : str = self.__database.profile_get_displayname(username)
         pictureID : str = self.__database.profile_get_pictureid(username)
 
+        isFriend: bool = self.is_friend(uuid, username)
+        isFollowed: bool = self.is_following(uuid, username)
+
+
         resp : typing.Dict[str,str] = {
             "username": username,
             "displayname": display_name,
             "pictureid":pictureID,
+            "isFriend":isFriend,
+            "isFollowed":isFollowed,
         }
 
         return True, resp
@@ -292,6 +321,54 @@ class ServerController:
     def upload_post_picture(self, raw_data) -> str:
         """Uploads a new post picture, returns the uuid."""
         return self.__media.upload_post_picture(raw_data)
+    
+    def add_friend(self, uuid : str, connected_username : str) -> None:
+        """Adds another user as a friend of the current user."""
+        username : str = self.get_username(uuid)
+        self.__friend_graph.add_connection(username, connected_username)
+        self.__database.add_connection(username, connected_username, friend = True)
+
+    def add_following(self, uuid : str, connected_username : str) -> None:
+        """Adds another user to the list of users followed by the current user."""
+        username : str = self.get_username(uuid)
+        self.__following_graph.add_connection(username, connected_username)
+        self.__database.add_connection(username, connected_username, follow = True)
+
+    def remove_friend(self, uuid : str, connected_username : str) -> None:
+        """Removes a user from friend list of the current user."""
+        username : str = self.get_username(uuid)
+        self.__friend_graph.remove_connection(username, connected_username)
+        self.__database.remove_connection(username, connected_username, friend = True)
+
+    def remove_following(self, uuid : str, connected_username : str) -> None:
+        """Removes another user from the list of users followed by the current user."""
+        username : str = self.get_username(uuid)
+        self.__following_graph.remove_connection(username, connected_username)
+        self.__database.remove_connection(username, connected_username, follow = True)
+
+    def handle_user_add_connection(self, uuid : str, connected_username : str, conenction_type : str, add : bool) -> None:
+        """Adds or removes a friend or following conenction based on a user's request."""
+        if conenction_type == "Friend":
+            if add:
+                self.add_friend(uuid, connected_username)
+            else:
+                self.remove_friend(uuid, connected_username)
+        elif conenction_type == "Follow":
+            if add:
+                self.add_following(uuid, connected_username)
+            else:
+                self.remove_following(uuid, connected_username)
+
+    def is_friend(self, uuid : str, connected_username : str) -> bool:
+        """Returns whether a user is a friend of the current user."""
+        username : str = self.get_username(uuid)
+        return self.__friend_graph.is_connected(username, connected_username)
+
+    def is_following(self, uuid : str, connected_username : str) -> bool:
+        """Returns whether the current user is following a particular person."""
+        username : str = self.get_username(uuid)
+        return self.__following_graph.is_connected(username, connected_username)
+
 
 
 

@@ -6,7 +6,7 @@ class SocketAPI {
 
     SERVER_IP = "localhost";
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.4"
+    PROTOCOL_VERSION = "1.5"
 
     #client_controller_callback;
 
@@ -333,6 +333,22 @@ class SocketAPI {
             "command":"UpdateProfilePicture",
             "csec":this.#client_secret,
             "pictureUUID":picture_id,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+
+    }
+
+    /** Requests adding or removing a friend or following conenction. */
+    add_user_connection(connected_user, connection_type, add){
+
+        var request_json = {
+            "action":"command",
+            "command":"AddUserConnection",
+            "csec":this.#client_secret,
+            "username":connected_user,
+            "type":connection_type,
+            "add":add,
         };
 
         this.#send_data(JSON.stringify(request_json))

@@ -201,20 +201,31 @@ class _GraphNode:
     def __init__(self, name : str):
         self.__name : str = name # stores the name this node represents
 
-        self.__connections: typing.List[str] = [] # username of any connection
+        self.__connections: typing.Set[str] = set() # username of any connection
 
     def get_name(self) -> str:
         return self.__name
+    
+    
+    def add_connection(self, connected_user : str) -> None:
+        """Adds a new connection to a user."""
+        self.__connections.add(connected_user)
+    
 
+    def is_connected(self, user : str) -> bool:
+        """Returns whether a user is connected to this user."""
+        return user in self.__connections
     
-    
-    def add_connection(self, symbol : str, node : typing.Self) -> None:
-        """Adds a new child into the sub branch for that symbol."""
-        self.__children[symbol] = node
+    def remove_connection(self, connected_user : str) -> None:
+        """Removes an existing connection to a user."""
+        if not self.is_connected(connected_user):
+            return
+        self.__connections.remove(connected_user)
 
     def get_connections(self) -> typing.List[str]:
-        """Returns a list of all usernames """
-        return self.__connections
+        """Returns a list of usernames of all connected """
+        return list(self.__connections)
+
 
 
 class Graph:
@@ -224,13 +235,27 @@ class Graph:
         # map between username and a node representing them in the graph
         self.__nodes : typing.Dict[str,_GraphNode] = {}
 
-    def add_user(self, username : str, friends : typing.List[str] = [], following : typing.List[str] = []) -> None:
-        """Adds a new string to the trie."""
-        return
+    def add_user(self, username : str) -> None:
+        """Adds a user to the graph"""
+        self.__nodes[username] = _GraphNode(username)
 
+    def add_connection(self, username : str, connected_user: str) -> None:
+        """Adds a new connection between 2 users"""
+        user : _GraphNode = self.__nodes[username]
+        user.add_connection(connected_user)
+
+    def remove_connection(self, username : str, connected_user: str) -> None:
+        """Removes an existing connection between 2 users"""
+        user : _GraphNode = self.__nodes[username]
+        user.remove_connection(connected_user)
+        
+    def is_connected(self, username : str, connected_user : str) -> bool:
+        """Returns whether a user is connected to this user."""
+        user : _GraphNode = self.__nodes[username]
+        return user.is_connected(connected_user)
          
     
-    def get_all_friends_from_node(self, start_node : _GraphNode) -> typing.List[str]:
-        # """Iterates over all possible endings from a specific node, ordered alphabetically."""
-        pass
+    # def get_all_friends_from_node(self, start_node : _GraphNode) -> typing.List[str]:
+    #     """Iterates over all possible endings from a specific node, ordered alphabetically."""
+    #     pass
 

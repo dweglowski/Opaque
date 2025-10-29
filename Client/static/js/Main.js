@@ -165,6 +165,23 @@ class Client {
     }
 
 
+    add_friend(username){
+        this.#api.add_user_connection(username, "Friend", true)    
+    }
+    remove_friend(username){
+        this.#api.add_user_connection(username, "Friend", false)    
+    }
+    follow_user(username){
+        this.#api.add_user_connection(username, "Follow", true)    
+    }
+    unfollow_user(username){
+        this.#api.add_user_connection(username, "Follow", false)    
+    }
+
+
+
+
+
     /** Initiate getting posts */
     subsribe_to_posts(){
         this.#api.subscribe_to_posts();

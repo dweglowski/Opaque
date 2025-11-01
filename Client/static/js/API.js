@@ -355,4 +355,15 @@ class SocketAPI {
 
     }
 
+    request_filtered_posts(filter_type){
+        var request_json = {
+            "action":"command",
+            "command":"RequestFilteredPosts",
+            "csec":this.#client_secret,
+            "filter":filter_type,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+    }
+
 }

@@ -612,6 +612,28 @@ class WebsocketServer:
 
         self.__send_response(json.dumps(response_json))
 
+    def __handle_post_filter_request(self, json_data : typing.Dict) -> None:
+        """Called when a user request filter posts"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+        
+        filter_type : str = json_data["filter"]
+
+
+        # catch up on all existing posts
+        self.__server_callback.send_existing_posts_to_client(self.__uuid, filter_type = filter_type)
+
+        response_json = {
+            "action":"result",
+            "command":"RequestFilteredPosts",
+            "success":True,
+        }
+
+        self.__send_response(json.dumps(response_json))
+
     def __handle_client_request(self, data : str) -> None:
         """Handles a single request from a client.
         Takes in data and uuid.
@@ -664,6 +686,10 @@ class WebsocketServer:
                     case "AddUserConnection":
                         
                         self.__handle_user_add_connection(json_data)
+
+                    case "RequestFilteredPosts":
+                        
+                        self.__handle_post_filter_request(json_data)
 
             elif action == "subscribe":
 

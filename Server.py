@@ -259,16 +259,81 @@ class ServerController:
 
         return False
 
-    def send_existing_posts_to_client(self, uuid : str) -> str:
-        """Sends all relevant existing posts to a client"""
+
+    def __set_cache_filter_type(self, filter_type : str, uuid : str) -> None:
+        """Sets a client's active filter type in session storage."""
+        self.__uuid_session_storage[uuid]["filter_type"] = filter_type
+
+    def __get_cache_filter_type(self, uuid : str) -> str:
+        """Retruns the client's active filter type from session storage."""
+        return self.__uuid_session_storage[uuid].get("filter_type","all")
+
+    def send_existing_posts_to_client(self, uuid : str, filter_type : str = "all") -> str:
+        """Sends all relevant existing posts to a client, applies filter in required"""
         all_posts : TYPE_POSTS = self.get_posts()
 
         send_post_to_client_callback : typing.Callable[[TYPE_POST], None] = self.__post_feed_subscribers[uuid]
 
+        # cache filter_type for new messages
+        self.__set_cache_filter_type(filter_type, uuid)
+
+        if self.__check_filter_requires_sorting(filter_type):
+            # sort posts by metric
+            print("TODO: Sort posts by the relevant metric")
+
         for post in all_posts:
             # only posts that are shared with user
             if self.__validate_post_is_for_client(post, uuid):
-                send_post_to_client_callback(post)
+                # filter posts
+                if self.__check_post_matches_filter(post, filter_type, uuid):
+                    send_post_to_client_callback(post)
+
+    def __check_filter_requires_sorting(self, filter_type: str) -> bool:
+        """Returns whether a filter type requires sorting posts by any metric."""
+        if filter_type == "new":
+            return True
+        if filter_type == "best":
+            return True
+        return False
+    
+    def __sort_posts(self, filter_type : str, posts : TYPE_POSTS) -> TYPE_POSTS:
+        """Sorts a list of posts following specific criteria."""
+        if filter_type == "new":
+            # requires implementing post metrics first
+            pass
+
+        return posts
+
+    def __check_post_matches_filter(self, post : TYPE_POST, filter_type : str, uuid : str) -> bool:
+        """Returns whether a post matches a particular filter."""
+        if filter_type == "all":
+            return True
+        if filter_type == "new":
+            return True
+        if filter_type == "best":
+            return True
+        
+        if filter_type == "following":
+            # return true only if the post owner is being followed by the client requesting them
+            sender : str = post["from"]
+            if self.is_following(uuid, sender):
+                return True
+            return False
+        
+        if filter_type == "friends":
+            # return true only if the post owner is a friend of the client requesting them
+            sender : str = post["from"]
+            if self.is_friend(uuid, sender):
+                return True
+            return False
+        
+        if filter_type == "news":
+            # return true if the post is tagged as a news post, done by checking for a #news tag
+            if "#news" in post["content"].lower():
+                return True
+            return False
+        
+        return False
 
 
     def __send_new_post_to_relevant_users(self, post : TYPE_POST) -> None:
@@ -281,6 +346,10 @@ class ServerController:
         for uuid in self.__post_feed_subscribers:
 
             if not self.__validate_post_is_for_client(post, uuid):
+                continue
+            
+            filter_type : str = self.__get_cache_filter_type(uuid)
+            if not self.__check_post_matches_filter(post, filter_type, uuid):
                 continue
 
             # new post marked for this client, send update to client

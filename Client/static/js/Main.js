@@ -178,6 +178,10 @@ class Client {
         this.#api.add_user_connection(username, "Follow", false)    
     }
 
+    request_filtered_posts(filter_type){
+        this.#api.request_filtered_posts(filter_type);
+    }
+
 
 
 

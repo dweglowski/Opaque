@@ -35,6 +35,8 @@ class UI {
     #user_search_result_close_btn;
     #user_search_username_viewed;
 
+    #filter_dropdown;
+
     #posts_container;
 
     #new_post_field;
@@ -211,7 +213,10 @@ class UI {
         document.getElementById("UserSearchRemoveFriend").addEventListener("click", this.user_search_remove_friend.bind(this));
         document.getElementById("UserSearchFollow").addEventListener("click", this.user_search_follow.bind(this));
         document.getElementById("UserSearchUnfollow").addEventListener("click", this.user_search_unfollow.bind(this));
-
+        
+        this.#filter_dropdown = document.getElementById("FilterDropdown");
+        this.#filter_dropdown.addEventListener("change", this.#start_filter.bind(this));
+        
 
         
     }
@@ -348,6 +353,15 @@ class UI {
         
     }
 
+    #start_filter(){
+        var filter_type = this.#filter_dropdown.value;
+
+        // clear all existing posts
+        this.#posts_container.innerHTML = "";
+
+        this.#client_controller_callback.request_filtered_posts(filter_type);
+    }
+
     
 
     /** Adds a new canvas element from a template and add an image to it */
@@ -431,7 +445,14 @@ class UI {
         var content = post["content"];
         this.#display_post(user_from, user_from_display_name, users_to, content);
 
-        this.#posts_container.scrollTop = this.#posts_container.scrollHeight;
+        if (this.#filter_dropdown.value == "best" || this.#filter_dropdown.value == "new"){
+            // scroll top
+            this.#posts_container.scrollTop = 0;
+        }
+        else{
+            // scroll bottom
+            this.#posts_container.scrollTop = this.#posts_container.scrollHeight;
+        }
     
     }
 

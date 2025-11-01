@@ -255,7 +255,67 @@ class Graph:
         return user.is_connected(connected_user)
          
     
-    # def get_all_friends_from_node(self, start_node : _GraphNode) -> typing.List[str]:
-    #     """Iterates over all possible endings from a specific node, ordered alphabetically."""
-    #     pass
+    def get_all_connected(self, username : str) -> typing.List[str]:
+        """Returns all usernames connected to a particular user."""
+        user : _GraphNode = self.__nodes[username]
+
+        connected_usernames : typing.List[str] = []
+        connected_username : str
+        for connected_username in user.get_connections():
+            connected_usernames.append(connected_username)
+
+        return connected_usernames
+    
+    def get_mutual_nodes(self, username1 : str, username2 : str) -> typing.List[str]:
+        """Returns a list of usernames who are connected to both users provided (all mutual nodes)."""
+        user1 : _GraphNode = self.__nodes[username1]
+        user2 : _GraphNode = self.__nodes[username2]
+
+        connected_usernames1 : typing.List[str] = self.get_all_connected(username1)
+        connected_usernames2 : typing.List[str] = self.get_all_connected(username1)
+
+        mutual_nodes : typing.List[str] = []
+        connected_username : str
+        for connected_username in connected_usernames1:
+            if connected_username in connected_usernames2:
+                # in both so mutual connection
+                mutual_nodes.append(connected_username)
+
+        return mutual_nodes
+
+    def get_degrees_of_separation(self, username1 : str, username2 : str) -> int:
+        """Uses breadth first search to determine the degrees of seperation from user1 to user2, done to a max depth of 4"""
+        user1 : _GraphNode = self.__nodes[username1]
+
+        queue : Queue = Queue()
+        # stores (user, depth) 
+        queue.enqueue((username1, 0))
+
+        visited : typing.Set[str] = set()
+        visited.add(username1)
+
+        username : str
+        depth : int
+        while not queue.is_empty():
+            username, depth = queue.dequeue()
+            if username == username2:
+                # found user, end early for efficiency
+                return depth
+            
+            connected_username : str
+            for connected_username in self.get_all_connected(username):
+                # only add to queue if not already visited
+                if connected_username not in visited:
+                    # max search depth of 4
+                    if depth < 4:
+                        visited.add(connected_username)
+                        # adds to end of queue to search
+                        queue.enqueue((connected_username, depth + 1))
+        
+        # could not find user within 4 connections, return max value of 5
+        return 5
+                    
+
+
+        
 

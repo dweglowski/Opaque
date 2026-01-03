@@ -152,6 +152,10 @@ class SocketAPI {
                     break;
                 case "UpdateProfilePicture":
                     break;
+                case "GetConversations":
+                    var conversations = json["data"];
+                    this.#client_controller_callback.get_conversations_results(conversations);
+                    break;
                 }
             }
         else if (action == "subscribe"){
@@ -171,6 +175,10 @@ class SocketAPI {
             if (feed == "Posts"){
                 var post = json["data"];
                 this.#client_controller_callback.handle_recived_post(post);
+            }
+            else if (feed == "Messages"){
+                var message = json["data"];
+                this.#client_controller_callback.handle_recived_message(message);
             }
         }
     }
@@ -366,4 +374,61 @@ class SocketAPI {
         this.#send_data(JSON.stringify(request_json))
     }
 
+
+
+    /** Subscribes to recive update messages with new direct messages. */
+    subscribe_to_messages(){
+
+        var request_json = {
+            "action":"subscribe",
+            "feed":"Messages",
+            "csec":this.#client_secret,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+
+    }
+
+
+    /** Requests a list of conversations the client has held. */
+    get_conversations(){
+        
+        var request_json = {
+            "action":"command",
+            "command":"GetConversations",
+            "csec":this.#client_secret,
+        };
+    
+        this.#send_data(JSON.stringify(request_json))
+
+    }
+
+    /** Request direct messages from a specific conversation. */
+    get_conversation_messages(conversation_username){
+        var request_json = {
+            "action":"command",
+            "command":"RequestMessagesFromUser",
+            "csec":this.#client_secret,
+            "username":conversation_username,
+        };
+    
+        this.#send_data(JSON.stringify(request_json))
+
+    }
+
+ 
+
+    /** Sends an add message request to the server. */
+    add_message(SenderCopy, RecipientCopy, to){
+
+        var request_json = {
+            "action":"command",
+            "command":"AddMessage",
+            "csec":this.#client_secret,
+            "data":{"SenderCopy": SenderCopy, "RecipientCopy": RecipientCopy, "to": to},
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+
+    }
 }

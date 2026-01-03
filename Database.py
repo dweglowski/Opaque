@@ -107,6 +107,9 @@ class DatabaseInterfaceBase:
         self.__db_cursor.execute(f'UPDATE {self.TABLE_NAME} SET "{column}" = ? WHERE "{primaryKey}" = ? AND "{conditionColumn}" = ?', (value, primaryKeyValue, conditionValue))
         self.__db.commit()
 
+    def close(self) -> None:
+        self.__db_cursor.close()
+
 
 class PostsDatabaseInterface(DatabaseInterfaceBase):
     """Extends DatabaseInterfaceBase for accessing the posts database.
@@ -315,6 +318,53 @@ class ConnectionsDatabaseInterface(DatabaseInterfaceBase):
             self._update_by_compund_key("isFollowing",0,"username",username,"user_connected",connected_user)
         
 
+class MessagesDatabaseInterface(DatabaseInterfaceBase):
+    """Extends DatabaseInterfaceBase for accessing the messages database.
+    Columns:
+        id:
+            INTEGER PRIMARY KEY
+            INSERT and READ ONLY
+        owner:
+            TEXT
+            INSERT and READ ONLY
+        user_to:
+            TEXT
+            INSERT and READ
+            WRITE if username = owner
+        SenderCopy:
+            TEXT
+            INSERT and READ (server will decide whether this value is sent on the client)
+            WRITE if username = owner
+        RecipientCopy:
+            TEXT
+            INSERT and READ (server will decide whether this value is sent on the client)
+            WRITE if username = owner
+        time:
+            REAL
+            INSERT and READ
+            WRITE if username = owner
+    """
+
+    DATABASE_NAME = "Messages"
+    TABLE_NAME = "Messages"
+    COLUMNS = ["id","owner","user_to","SenderCopy","RecipientCopy","time"]
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def read_messages(self) -> typing.List[typing.Tuple[str, str, str, str, float]]:
+        """Reads the owner, users_to and content fields for all records"""
+        return self._read_columns(["owner","user_to","SenderCopy","RecipientCopy","time"])
+        
+    def add_message(self, owner : str, user_to : str, SenderCopy: str, RecipientCopy: str, time: float) -> None:
+        """Adds a new message to database with owner, users_to and content fields, id is sequentially allocated"""
+        self._insert(["owner", "user_to", "SenderCopy", "RecipientCopy", "time"],[owner, user_to, SenderCopy, RecipientCopy, time])
+        
+    def edit_content(self, id: str, username : str, new_sender_copy: str, new_recipient_copy: str) -> None:
+        """Edits the content of a message by id if the owner of the message matches the username"""
+        self._update_condition("SenderCopy",new_sender_copy,"id",id,"owner",username)
+        self._update_condition("RecipientCopy",new_recipient_copy,"id",id,"owner",username)
+
 
 
 
@@ -324,6 +374,7 @@ class DatabaseController:
         self.__logins_db : LoginsDatabaseInterface = LoginsDatabaseInterface()
         self.__profiles_db : ProfileDatabaseInterface = ProfileDatabaseInterface()
         self.__connections_db : ConnectionsDatabaseInterface = ConnectionsDatabaseInterface()
+        self.__messages_db : MessagesDatabaseInterface = MessagesDatabaseInterface()
 
 
 
@@ -395,6 +446,35 @@ class DatabaseController:
         self.__connections_db.remove_connection(username, connected_user, friend, follow)
 
 
+    def get_messages(self) -> TYPE_POSTS:
+        """Returns the full content of the messages database."""
+        messages_raw : typing.List[typing.Tuple[str, str, str, float]] = self.__messages_db.read_messages()
+        # print(posts_raw)
+        messages : TYPE_POSTS = []
+        for message in messages_raw:
+            json_post = {
+                "from": message[0],
+                "to": message[1],
+                "SenderCopy": message[2],
+                "RecipientCopy": message[3],
+                "time": message[4],
+            }
+            messages.append(json_post)
+
+        return messages
+    
+    def add_message(self, message : TYPE_POST) -> None:
+        """Adds a message to the database."""
+        owner : str = message["from"]
+        users_to : str = message["to"]
+        SenderCopy: str = message["SenderCopy"]
+        RecipientCopy: str = message["RecipientCopy"]
+        time: float = message["time"]
+        self.__messages_db.add_message(owner, users_to, SenderCopy, RecipientCopy, time)
+
     def close(self) -> None:
         """Safely closes all databases"""
         self.__posts_db.close()
+        self.__logins_db.close()
+        self.__logins_db.close()
+        self.__profiles_db.close()

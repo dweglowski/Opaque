@@ -349,6 +349,17 @@ class WebsocketServer:
         }
 
         self.__send_response(json.dumps(response_json))
+   
+    def send_message_to_client(self, post : TYPE_POST) -> None:
+        """Sends an update to the client containing another direct message."""
+        
+        response_json : dict = {
+            "action":"update",
+            "feed":"Messages",
+            "data":post,
+        }
+
+        self.__send_response(json.dumps(response_json))
 
 
     def __handle_subscribe_to_posts(self, json_data : typing.Dict) -> None:
@@ -371,6 +382,25 @@ class WebsocketServer:
 
         # catch up on all existing posts
         self.__server_callback.send_existing_posts_to_client(self.__uuid)
+
+    
+    def __handle_subscribe_to_messages(self, json_data : typing.Dict) -> None:
+        """Logic to handle subscribing to messages"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        self.__server_callback.subscribe_client_to_messages_feed(self.__uuid, self.send_message_to_client)
+
+        response_json : dict = {
+            "action":"subscribe",
+            "feed":"Messages",
+            "success":True,
+        }
+
+        self.__send_response(json.dumps(response_json))
         
 
     def __handle_add_post(self, json_data : typing.Dict) -> None:
@@ -634,6 +664,78 @@ class WebsocketServer:
 
         self.__send_response(json.dumps(response_json))
 
+    def __handle_get_conversations(self, json_data : typing.Dict) -> None:
+        """Returns a list of active conversations a user has, sorted by time of the last message"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+        
+        
+        conversations : typing.List[str] = self.__server_callback.get_most_recent_conversations(self.__uuid)
+
+        response_json = {
+            "action":"result",
+            "command":"GetConversations",
+            "success":True,
+            "data":conversations,
+        }
+
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_request_messages_from_user(self, json_data : typing.Dict) -> None:
+        """Called when a user request direct messages from a user"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+        
+        user_from : str = json_data["username"]
+
+
+        # catch up on all existing messages
+        self.__server_callback.send_existing_messages_to_client(self.__uuid, user_from = user_from)
+
+        response_json = {
+            "action":"result",
+            "command":"RequestMessagesFromUser",
+            "success":True,
+        }
+
+        self.__send_response(json.dumps(response_json))
+
+    
+    def __handle_add_message(self, json_data : typing.Dict) -> None:
+        """Logic to handle a 'add message' request from the client"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        username : str = self.__server_callback.get_username(self.__uuid)
+
+        message : TYPE_POST = json_data["data"]
+
+        # reduce risk of json injection
+        sanitised_message : TYPE_POST = {
+            "to": message["to"],
+            "SenderCopy": message["SenderCopy"],
+            "RecipientCopy": message["RecipientCopy"],
+            }
+
+        self.__server_callback.add_message(sanitised_message, username)
+
+        response_json : dict = {
+            "action":"result",
+            "command":"AddMessage",
+            "success":True
+        }
+
+        self.__send_response(json.dumps(response_json))
+
     def __handle_client_request(self, data : str) -> None:
         """Handles a single request from a client.
         Takes in data and uuid.
@@ -691,6 +793,18 @@ class WebsocketServer:
                         
                         self.__handle_post_filter_request(json_data)
 
+                    case "GetConversations":
+                        
+                        self.__handle_get_conversations(json_data)
+
+                    case "RequestMessagesFromUser":
+                        
+                        self.__handle_request_messages_from_user(json_data)
+
+                    case "AddMessage":
+                        
+                        self.__handle_add_message(json_data)
+
             elif action == "subscribe":
 
                 feed : str = json_data["feed"]
@@ -698,6 +812,8 @@ class WebsocketServer:
                 match (feed):
                     case "Posts":
                         self.__handle_subscribe_to_posts(json_data)
+                    case "Messages":
+                        self.__handle_subscribe_to_messages(json_data)
 
         except Exception as e:
             print(e)

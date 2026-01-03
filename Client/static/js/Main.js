@@ -12,6 +12,8 @@ class Client {
 
     #login_username = ""; // used to cache the username from login while awaiting the salt from server
     #login_password = ""; // used to cache the password from login while awaiting the salt from server
+
+    #open_conversation_username = ""; // the username of the currently open conversation
     
     constructor(){
         
@@ -86,6 +88,8 @@ class Client {
     
         this.subsribe_to_posts();
 
+        this.subscribe_to_messages();
+
         this.get_profile_info();
     }
 
@@ -111,6 +115,8 @@ class Client {
         this.#ui.show_main_page();
         
         this.subsribe_to_posts();
+
+        this.subscribe_to_messages();
 
         this.get_profile_info();
 
@@ -182,6 +188,28 @@ class Client {
         this.#api.request_filtered_posts(filter_type);
     }
 
+    get_conversations(){
+        this.#api.get_conversations();
+    }
+    get_conversations_results(conversations){
+        this.#ui.display_conversations(conversations);
+    }
+
+    open_conversation(username){
+        this.#open_conversation_username = username;
+        this.#api.get_conversation_messages(username);
+    }
+    handle_recived_message(message){
+        message["content"] = message["RecipientCopy"]; // TODO decrypt e2ee
+        this.#ui.display_new_message(message);
+    }
+
+    add_message(content){
+        var SenderCopy = content; // TODO encrypt e2ee
+        var RecipientCopy = content; // TODO encrypt e2ee
+        this.#api.add_message(SenderCopy, RecipientCopy, this.#open_conversation_username);
+    }
+
 
 
 
@@ -190,7 +218,11 @@ class Client {
     subsribe_to_posts(){
         this.#api.subscribe_to_posts();
     }
-    
+    /** Initiate getting direct messages */
+    subscribe_to_messages(){
+        this.#api.subscribe_to_messages();
+    }
+
     /** Displays a newly recived post once recived from server */
     handle_recived_post(post){
         this.#ui.display_new_post(post);

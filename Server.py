@@ -28,6 +28,7 @@ class ServerController:
 
         # storage for users subscribed to posts feed and their "send post to client" callback
         self.__post_feed_subscribers : typing.Dict[str, typing.Callable[[TYPE_POST], None]] = {}
+        self.__messages_feed_subscribers : typing.Dict[str, typing.Callable[[TYPE_POST], None]] = {}
 
         # store all usernames in a quickly searchable way
         self.__username_trie : Trie = Trie("abcdefghijklmnopqrstuvwxyz0123456789_")
@@ -83,7 +84,7 @@ class ServerController:
         input("Press enter to stop..\n")
         self.__database.close()
         print("Safe to kill process")
-        exit()
+        quit()
 
     def generate_uuid(self) -> str:
         """Generates a UUID (universally unique identifier) to be used throughout the program"""
@@ -118,6 +119,8 @@ class ServerController:
         self.__active_connection_uuids.remove(uuid)
         if uuid in self.__post_feed_subscribers:
             self.__post_feed_subscribers.pop(uuid)
+        if uuid in self.__messages_feed_subscribers:
+            self.__messages_feed_subscribers.pop(uuid)
 
         print(self.__active_connection_uuids,self.__uuid_session_storage)
 
@@ -258,6 +261,33 @@ class ServerController:
             return True
 
         return False
+    def __validate_post_is_for_client(self, post : TYPE_POST, uuid : str) -> None:
+
+        client_username : str = self.get_username(uuid)
+
+        users_to : str = ""
+        if post["to"] == "@all" or client_username in post["to"].split("@"):
+            return True
+
+        return False
+
+    def __validate_message_is_for_client(self, message : TYPE_POST, uuid : str) -> None:
+
+        client_username : str = self.get_username(uuid)
+
+        if message["to"] == client_username or message["from"] == client_username:
+            return True
+
+        return False
+
+    def __is_message_between_users(self, message : TYPE_POST, uuid:str, username : str) -> None:
+
+        client_username : str = self.get_username(uuid)
+
+        if (message["to"] == username and message["from"] == client_username) or (message["from"] == username and message["to"] == client_username):
+            return True
+
+        return False
 
 
     def __set_cache_filter_type(self, filter_type : str, uuid : str) -> None:
@@ -369,6 +399,112 @@ class ServerController:
         self.__send_new_post_to_relevant_users(post)
 
 
+    
+    def get_messages(self) -> TYPE_POSTS:
+        """Gets and returns all direct messages from the database"""
+        return  self.__database.get_messages()
+
+
+    def subscribe_client_to_messages_feed(self, uuid : str, send_message_to_client_callback : typing.Callable[[TYPE_POST], None]) -> None:
+        """Subscribes a client to a messages feed to recieve event update messages for each new direct message."""
+        self.__messages_feed_subscribers[uuid] = send_message_to_client_callback
+
+    def __set_cache_client_active_message_tab(self, filter_type : str, uuid : str) -> None:
+        """Stores which direct message conversation a client has open in session storage."""
+        self.__uuid_session_storage[uuid]["active_conversation"] = filter_type
+
+    def __get_cache_client_active_message_tab(self, uuid : str) -> str:
+        """Retruns the client's active filter type from session storage."""
+        return self.__uuid_session_storage[uuid].get("active_conversation","")
+
+    def send_existing_messages_to_client(self, uuid : str, user_from : str) -> str:
+        """Sends all relevant existing direct messages to a client from a specific user"""
+        all_messages : TYPE_POSTS = self.get_messages()
+
+        send_message_to_client_callback : typing.Callable[[TYPE_POST], None] = self.__messages_feed_subscribers[uuid]
+
+        # cache open tab for new messages
+        self.__set_cache_client_active_message_tab(user_from, uuid)
+
+        client_username : str = self.get_username(uuid)
+
+        
+        for message in all_messages:
+            # only messages between the 2 users
+            if self.__validate_message_is_for_client(message, uuid):
+                if self.__is_message_between_users(message, uuid, user_from):
+                    message_copy : TYPE_POST = message.copy()
+                    # Store whether you are the sender to display this info in the ui
+                    if message["from"] == client_username:
+                        message_copy["owned"] = True
+                    else:
+                        message_copy["owned"] = False
+                    send_message_to_client_callback(message_copy)
+
+    
+    def __send_new_message_to_relevant_users(self, message : TYPE_POST) -> None:
+        """Sends a newly added direct message to all relevant active clients of that user."""
+        uuid : str
+        send_message_to_client_callback : typing.Callable[[TYPE_POST], None]
+
+        for uuid in self.__messages_feed_subscribers:
+
+            if not self.__validate_message_is_for_client(message, uuid):
+                continue
+            
+            if self.__get_cache_client_active_message_tab(uuid) != message["from"] and self.__get_cache_client_active_message_tab(uuid) != message["to"]:
+                continue
+
+            # new post marked for this client, send update to client
+            
+            message_copy : TYPE_POST = message.copy()
+            # Store whether you are the sender to display this info in the ui
+            client_username : str = self.get_username(uuid)
+            if message["from"] == client_username:
+                message_copy["owned"] = True
+            else:
+                message_copy["owned"] = False
+
+            send_message_to_client_callback = self.__messages_feed_subscribers[uuid]
+            send_message_to_client_callback(message_copy)
+            
+    def get_most_recent_conversations(self, uuid : str) -> typing.List[str]:
+        """Returns a list of the most most recent conversations with this client"""
+        all_messages : TYPE_POSTS = self.get_messages()
+
+        client_username : str = self.get_username(uuid)
+
+        # Store the time of the most recent message from each conversation to determine newest conversations
+        most_recent_per_conversation : typing.Dict[str, float] = {}
+
+        for message in all_messages:
+            # only messages between the 2 users
+            if self.__validate_message_is_for_client(message, uuid):
+                user_with : str = ""
+                if message["from"] == client_username:
+                    user_with = message["to"]
+                else:
+                    user_with = message["from"]
+                
+                message_time: float = float(message["time"])
+                if message_time > most_recent_per_conversation.get(user_with, 0.0):
+                    most_recent_per_conversation[user_with] = message_time
+
+        most_recent_conversations = sorted(most_recent_per_conversation.keys(), key = most_recent_per_conversation.get, reverse=True)
+
+        return most_recent_conversations 
+
+
+    def add_message(self, post : TYPE_POST, username : str) -> None:
+        """Adds a new direct message to the database."""
+
+        post["from"] = username
+        post["time"] = time.time()
+
+        self.__database.add_message(post)
+
+        # send this message the client if they are online and have the chat open
+        self.__send_new_message_to_relevant_users(post)
 
 
     def get_profile_picture(self, uuid : str) -> bytes:

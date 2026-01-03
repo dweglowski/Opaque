@@ -29,11 +29,19 @@ class UI {
     #user_search_open_btn;
     #user_search_container;
     #user_search_username;
+    #user_search_username_event_listener_started = false;
     #user_search_suggestions_container;
     #user_search_send_btn;
     #user_search_result_container;
     #user_search_result_close_btn;
     #user_search_username_viewed;
+
+
+    #messages_tab_open_btn;
+    #messages_tab_container;
+    #messages_tab_close_btn;
+    #messages_tab_new_conversation_btn_event_listener_started = false;
+    #messages_tab_send_btn_event_listener_started = false;
 
     #filter_dropdown;
 
@@ -218,6 +226,16 @@ class UI {
         this.#filter_dropdown.addEventListener("change", this.#start_filter.bind(this));
         
 
+
+
+
+        this.#messages_tab_container = document.getElementById("MessagesTab");
+
+        this.#messages_tab_open_btn = document.getElementById("MessagesTabOpen");
+        this.#messages_tab_open_btn.addEventListener("click", this.#open_messages_tab.bind(this));
+        this.#messages_tab_close_btn = document.getElementById("MessagesTabClose");
+        this.#messages_tab_close_btn.addEventListener("click", this.#close_messages_tab.bind(this));
+
         
     }
 
@@ -239,7 +257,10 @@ class UI {
         this.#user_search_username = document.getElementById("SearchUsername");
         this.#user_search_suggestions_container = document.getElementById("UserSearchSuggestionsResult");
 
-        this.#user_search_username.addEventListener("input", this.request_username_suggestions.bind(this));
+        if (!this.#user_search_username_event_listener_started){
+            this.#user_search_username_event_listener_started = true;
+            this.#user_search_username.addEventListener("input", this.request_username_suggestions.bind(this));
+        }
     }
 
     request_username_suggestions(){
@@ -501,6 +522,107 @@ class UI {
         this.#new_post_field.value="";
 
         this.#client_controller_callback.add_post(content, to);
+    }
+
+
+    #open_messages_tab(){
+        this.#messages_tab_container.style.display="block";
+        this.#MainContainer.style.filter="blur(5px)";
+
+        if (!this.#messages_tab_new_conversation_btn_event_listener_started){
+            document.getElementById("MessagesAddNew").addEventListener("click", this.start_new_conversation.bind(this));
+            this.#messages_tab_new_conversation_btn_event_listener_started = true;
+        }
+        if (!this.#messages_tab_send_btn_event_listener_started){
+            document.getElementById("ChatSendMessage").addEventListener("click", this.add_message.bind(this));
+            this.#messages_tab_send_btn_event_listener_started = true;
+        }
+
+        this.#client_controller_callback.get_conversations();
+
+    }
+    #close_messages_tab(){
+        this.#messages_tab_container.style.display="none";
+        this.#MainContainer.style.filter="";
+    }
+
+    display_conversations(conversations){
+        var conversations_container = document.getElementById("ConversationsContainer");
+        conversations_container.innerHTML="";
+
+        conversations.forEach(username => {
+            var a = document.createElement('a');
+            a.textContent = username;
+            a.href="#messages/"+username;
+            a.addEventListener("click", (() => {
+                this.open_conversation(username);
+            }));
+            conversations_container.appendChild(a);
+        });
+    }
+
+    start_new_conversation(){
+        var username = document.getElementById("NewConversationUsername").value;
+        this.open_conversation(username);
+    }
+
+    open_conversation(username){
+        this.#client_controller_callback.open_conversation(username);
+        document.getElementById("ChatMessagesContainer").innerHTML = "";
+    }
+    display_new_message(message){
+        var chat_container = document.getElementById("ChatMessagesContainer");
+
+        var owned = message["owned"];
+        var time = message["time"];
+        var content = message["content"];
+
+        var message_element = document.createElement("div");
+        message_element.className = "chat_message";
+        chat_container.appendChild(message_element);
+
+        var content_text = document.createElement("p");
+        content_text.textContent = content;
+        message_element.appendChild(content_text);
+
+        var time_string = "";
+        var time_now = Date.now()/1000;
+        var time_diff = time_now - time;
+        if (time_diff < 60){
+            time_string = Math.floor(time_diff)+" seconds ago";
+        }
+        else if (time_diff < 3600){
+            time_string = Math.floor(time_diff/60)+" minutes ago";
+        }
+        else if (time_diff < 86400){
+            time_string = Math.floor(time_diff/3600)+" hours ago";
+        }
+        else {
+            var date = new Date(time * 1000);
+            time_string = date.toLocaleDateString() + " " + date.toLocaleTimeString();
+        }
+
+        var time_text = document.createElement("p");
+        time_text.className = "chat_message_time";
+        time_text.textContent = time_string;
+        time_text.style.fontSize = "0.7em";
+        message_element.appendChild(time_text);
+        
+        if (owned){
+            message_element.style.textAlign = "right";
+        }
+        else {
+            message_element.style.textAlign = "left";
+        }
+
+        // scroll to bottom
+        chat_container.scrollTop = chat_container.scrollHeight;
+    }
+
+    add_message(){
+        var content = document.getElementById("NewMessage").value;
+        document.getElementById("NewMessage").value = "";
+        this.#client_controller_callback.add_message(content);
     }
 
 }

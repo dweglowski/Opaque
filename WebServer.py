@@ -321,7 +321,7 @@ class WebsocketServer:
             
             if len(self.__queue_data_in) == 0:
                 # queue empty, wait then try again
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.1)
                 continue
 
             json_data : str = self.__queue_data_in.dequeue()

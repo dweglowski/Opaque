@@ -78,7 +78,7 @@ class DatabaseInterfaceBase:
         if primaryKey not in self.COLUMNS:
             raise ValueError("Invalid column name")
 
-        self.__db_cursor.execute(f'UPDATE {self.TABLE_NAME} SET "{column}" = ? WHERE "{primaryKey}" = ?', (value, primaryKey))
+        self.__db_cursor.execute(f'UPDATE {self.TABLE_NAME} SET "{column}" = ? WHERE "{primaryKey}" = ?', (value, primaryKeyValue))
         self.__db.commit()
     
     def _update_by_compund_key(self, column : str, value : str, k1 : str, k1Value : str, k2 : str, k2Value : str) -> None:
@@ -106,6 +106,10 @@ class DatabaseInterfaceBase:
 
         self.__db_cursor.execute(f'UPDATE {self.TABLE_NAME} SET "{column}" = ? WHERE "{primaryKey}" = ? AND "{conditionColumn}" = ?', (value, primaryKeyValue, conditionValue))
         self.__db.commit()
+
+    def _get_last_inserted_id(self) -> int:
+        """Returns the last inserted row id"""
+        return self.__db_cursor.lastrowid
 
     def close(self) -> None:
         self.__db_cursor.close()
@@ -138,13 +142,15 @@ class PostsDatabaseInterface(DatabaseInterfaceBase):
     def __init__(self) -> None:
         super().__init__()
 
-    def read_posts(self) -> typing.List[typing.Tuple[str, str, str]]:
+    def read_posts(self) -> typing.List[typing.Tuple[str, str, str, int]]:
         """Reads the owner, users_to and content fields for all records"""
-        return self._read_columns(["owner","users_to","content"])
+        return self._read_columns(["owner","users_to","content","id"])
         
-    def add_post(self, owner : str, users_to : str, content: str) -> None:
-        """Adds a new post to database with owner, users_to and content fields, id is sequentially allocated"""
+    def add_post(self, owner : str, users_to : str, content: str) -> int:
+        """Adds a new post to database with owner, users_to and content fields, id is sequentially allocated. Returns the id of the new post."""
         self._insert(["owner", "users_to", "content"],[owner, users_to, content])
+        id : int = self._get_last_inserted_id()
+        return id
         
     def edit_content(self, id: str, username : str, new_content: str) -> None:
         """Edits the content of a post by id if the owner of the post matches the username"""
@@ -366,6 +372,63 @@ class MessagesDatabaseInterface(DatabaseInterfaceBase):
         self._update_condition("RecipientCopy",new_recipient_copy,"id",id,"owner",username)
 
 
+class AnalyticsDatabaseInterface(DatabaseInterfaceBase):
+    """Extends DatabaseInterfaceBase for accessing the analytics database.
+    Columns:
+        id:
+            INTEGER PRIMARY KEY
+            INSERT and READ ONLY
+        views:
+            INTEGER
+            INSERT, READ and WRITE
+        reactions_encrypted:
+            TEXT
+            INSERT, READ and WRITE
+        average_view_time_encrypted:
+            TEXT
+            INSERT, READ and WRITE
+        star_score:
+            REAL
+            INSERT, READ and WRITE
+        num_ratings:
+            INTEGER
+            INSERT, READ and WRITE
+    """
+
+    DATABASE_NAME = "Analytics"
+    TABLE_NAME = "Analytics"
+    COLUMNS = ["id","views","reactions_encrypted","average_view_time_encrypted","star_score","num_ratings"]
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def get_analytics_for_post(self, post_id: str) -> typing.Tuple[int, str, str, float, int]:
+        """Reads the analytics fields for a specific post id"""
+        record : typing.Tuple[int, str, str, float, int] = self._read_columns_condition(["views","reactions_encrypted","average_view_time_encrypted","star_score","num_ratings"],"id",post_id)[0]
+        return record
+        
+    def add_analytics(self, post_id: int) -> None:
+        """Adds new analytics data to the database for a specific post id"""
+        self._insert(["id", "views", "reactions_encrypted", "average_view_time_encrypted", "star_score", "num_ratings"], [post_id, 0, "", "", 0.0, 0])
+        
+    def update_reactions(self, id: int, reactions_encrypted: str) -> None:
+        """Edits the encrypted reactions of a post by id"""
+        self._update("reactions_encrypted", reactions_encrypted, "id", id)
+
+    def update_average_view_time(self, id: int, average_view_time_encrypted: str) -> None:
+        """Edits the encrypted average view time of a post by id"""
+        self._update("average_view_time_encrypted", average_view_time_encrypted, "id", id)
+
+    def update_star_score(self, id: int, star_score: float) -> None:
+        """Edits the star score of a post by id"""
+        self._update("star_score", star_score, "id", id)
+        self._update("num_ratings", self._read_columns_condition(["num_ratings"],"id",id)[0][0] + 1, "id", id)
+
+    def update_views(self, id: int, views: int) -> None:
+        """Edits the views of a post by id"""
+        self._update("views", views, "id", id)
+
+
 
 
 class DatabaseController:
@@ -375,12 +438,13 @@ class DatabaseController:
         self.__profiles_db : ProfileDatabaseInterface = ProfileDatabaseInterface()
         self.__connections_db : ConnectionsDatabaseInterface = ConnectionsDatabaseInterface()
         self.__messages_db : MessagesDatabaseInterface = MessagesDatabaseInterface()
+        self.__analytics_db : AnalyticsDatabaseInterface = AnalyticsDatabaseInterface()
 
 
 
     def get_posts(self) -> TYPE_POSTS:
         """Returns the full content of the posts database."""
-        posts_raw : typing.List[typing.Tuple[str, str, str]] = self.__posts_db.read_posts()
+        posts_raw : typing.List[typing.Tuple[str, str, str, int]] = self.__posts_db.read_posts()
         # print(posts_raw)
         posts : TYPE_POSTS = []
         for post in posts_raw:
@@ -389,17 +453,23 @@ class DatabaseController:
                 "fromname": self.profile_get_displayname(post[0]),
                 "to": post[1],
                 "content": post[2],
+                "id": post[3],
             }
             posts.append(json_post)
 
         return posts
     
-    def add_post(self, post : TYPE_POST) -> None:
-        """Adds a post to the database."""
+    def add_post(self, post : TYPE_POST) -> int:
+        """Adds a post to the database, returns post id."""
         owner : str = post["from"]
         users_to : str = post["to"]
         content: str = post["content"]
-        self.__posts_db.add_post(owner, users_to, content)
+        id: int = self.__posts_db.add_post(owner, users_to, content)
+
+        # Add empty analytics record for post
+        self.__analytics_db.add_analytics(id)
+
+        return id
 
 
     def get_username_list(self) -> typing.List[str]:
@@ -472,9 +542,40 @@ class DatabaseController:
         time: float = message["time"]
         self.__messages_db.add_message(owner, users_to, SenderCopy, RecipientCopy, time)
 
+    def get_analytics_for_post(self, post_id: str) -> typing.Dict[str, typing.Union[int, str, float]]:
+        """Reads the analytics fields for a specific post id"""
+        record : typing.Tuple[int, str, str, float, int] = self.__analytics_db.get_analytics_for_post(post_id)
+        analytics : typing.Dict[str, typing.Union[int, str, float]] = {
+            "views": record[0],
+            "reactions_encrypted": record[1],
+            "average_view_time_encrypted": record[2],
+            "star_score": record[3],
+            "num_ratings": record[4],
+        }
+        return analytics
+    
+    def update_view_count(self, post_id: int, views: int) -> None:
+        """Updates the view count for a specific post id"""
+        self.__analytics_db.update_views(post_id, views)
+
+    def update_reactions(self, post_id: int, reactions_encrypted: str) -> None:
+        """Updates the encrypted reactions for a specific post id"""
+        self.__analytics_db.update_reactions(post_id, reactions_encrypted)
+    
+    def update_average_view_time(self, post_id: int, average_view_time_encrypted: str) -> None:
+        """Updates the encrypted average view time for a specific post id"""
+        self.__analytics_db.update_average_view_time(post_id, average_view_time_encrypted)
+
+    def update_star_score(self, post_id: int, star_score: float) -> None:
+        """Updates the star score for a specific post id"""
+        self.__analytics_db.update_star_score(post_id, star_score)
+
+
     def close(self) -> None:
         """Safely closes all databases"""
         self.__posts_db.close()
         self.__logins_db.close()
-        self.__logins_db.close()
         self.__profiles_db.close()
+        self.__connections_db.close()
+        self.__messages_db.close()
+        self.__analytics_db.close()

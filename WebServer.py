@@ -736,6 +736,107 @@ class WebsocketServer:
 
         self.__send_response(json.dumps(response_json))
 
+    def __handle_get_my_posts(self, json_data : typing.Dict) -> None:
+        """Logic to handle a 'get my posts' request from the client"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        my_posts : TYPE_POSTS = self.__server_callback.get_my_posts(self.__uuid)
+
+        response_json = {
+            "action":"result",
+            "command":"GetMyPosts",
+            "success":True,
+            "data":my_posts,
+        }
+
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_increment_post_analytics_view_count(self, json_data : typing.Dict) -> None:
+        """Logic to handle incrementing the view count for a post"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        post_id : int = json_data["postid"]
+
+        self.__server_callback.increment_post_analytics_view_count(post_id)
+
+        response_json = {
+            "action":"result",
+            "command":"IncrementPostAnalyticsViewCount",
+            "success":True,
+        }
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_request_post_analytics(self, json_data : typing.Dict) -> None:
+        """Logic to handle requesting analytics for a post"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        post_id : int = json_data["postid"]
+
+        analytics : typing.Dict[str,int] = self.__server_callback.get_analytics_data_for_post(post_id)
+
+        response_json = {
+            "action":"result",
+            "command":"RequestPostAnalytics",
+            "success":True,
+            "data":analytics,
+        }
+
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_update_post_analytics(self, json_data : typing.Dict) -> None:
+        """Logic to handle updating analytics for a post"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        post_id : int = json_data["postID"]
+        reactions_encrypted : str = json_data["reactions_encrypted"]
+        avg_view_duration_seconds : float = json_data["avg_view_duration_seconds"]
+
+        self.__server_callback.update_analytics_data_for_post(post_id, reactions_encrypted, avg_view_duration_seconds)
+
+        response_json = {
+            "action":"result",
+            "command":"UpdatePostAnalytics",
+            "success":True,
+        }
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_increment_post_analytics_star_score(self, json_data : typing.Dict) -> None:
+        """Logic to handle incrementing the star score for a post"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        post_id : int = json_data["postID"]
+        star_score : float = json_data["star_score"]
+
+        self.__server_callback.increment_post_analytics_star_score(post_id, star_score)
+
+        response_json = {
+            "action":"result",
+            "command":"IncrementPostAnalyticsStarScore",
+            "success":True,
+        }
+        self.__send_response(json.dumps(response_json))
+
+
     def __handle_client_request(self, data : str) -> None:
         """Handles a single request from a client.
         Takes in data and uuid.
@@ -804,6 +905,29 @@ class WebsocketServer:
                     case "AddMessage":
                         
                         self.__handle_add_message(json_data)
+
+                    case "GetMyPosts":
+
+                        self.__handle_get_my_posts(json_data)
+
+            elif action == "analytics":
+                command : str = json_data["command"]
+                match (command):
+                    case "IncrementPostAnalyticsViewCount":
+
+                        self.__handle_increment_post_analytics_view_count(json_data)
+
+                    case "RequestPostAnalytics":
+
+                        self.__handle_request_post_analytics(json_data)
+
+                    case "UpdatePostAnalytics":
+
+                        self.__handle_update_post_analytics(json_data)
+
+                    case "IncrementPostAnalyticsStarScore":
+
+                        self.__handle_increment_post_analytics_star_score(json_data)
 
             elif action == "subscribe":
 

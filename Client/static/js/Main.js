@@ -210,6 +210,52 @@ class Client {
         this.#api.add_message(SenderCopy, RecipientCopy, this.#open_conversation_username);
     }
 
+    get_my_posts(){
+        this.#api.get_my_posts();
+    }
+    my_posts_results(posts){
+        var posts_with_decrypted_analytics = [];
+        for (var i = 0; i < posts.length; i++) {
+            var post = posts[i];
+            // decrypt analytics data
+            post = this.#decrypt_analytics_data(post);
+
+            posts_with_decrypted_analytics.push(post);
+        }
+        
+        this.#ui.display_my_posts(posts_with_decrypted_analytics);
+    }
+
+    #decrypt_analytics_data(post){
+        var decrypted_post = post;
+        decrypted_post["Views"] = post["views"];
+
+        decrypted_post["Likes"] = 0;
+        decrypted_post["Hearts"] = 0;
+        decrypted_post["Laughs"] = 0;
+        decrypted_post["Surprises"] = 0;
+        decrypted_post["Sads"] = 0;
+        decrypted_post["Angrys"] = 0;
+        decrypted_post["Fire"] = 0;
+        decrypted_post["Computers"] = 0;
+
+        decrypted_post["avg_view_duration"] = 0;
+        
+        decrypted_post["Stars"] = post["star_score"];
+        // clamp stars to 0-5
+        if (post["Stars"] < 0){
+            post["Stars"] = 0;
+        }
+        if (post["Stars"] > 5){
+            post["Stars"] = 5;
+        }
+
+        return decrypted_post;
+    }
+
+    increment_post_analytics_view_count(post_id){
+        this.#api.increment_post_analytics_view_count(post_id);
+    }
 
 
 

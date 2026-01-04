@@ -156,6 +156,10 @@ class SocketAPI {
                     var conversations = json["data"];
                     this.#client_controller_callback.get_conversations_results(conversations);
                     break;
+                case "GetMyPosts":
+                    var posts = json["data"];
+                    this.#client_controller_callback.my_posts_results(posts);
+                    break;
                 }
             }
         else if (action == "subscribe"){
@@ -431,4 +435,30 @@ class SocketAPI {
         this.#send_data(JSON.stringify(request_json))
 
     }
+
+    /** Requests a list of the client's posts with their analytics data. */
+    get_my_posts(){
+
+        var request_json = {
+            "action":"command",
+            "command":"GetMyPosts",
+            "csec":this.#client_secret,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+    }
+
+    //** Increment view count for post */
+    increment_post_analytics_view_count(post_id){
+
+        var request_json = {
+            "action":"analytics",
+            "command":"IncrementPostAnalyticsViewCount",
+            "csec":this.#client_secret,
+            "postid":post_id,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+    }
+
 }

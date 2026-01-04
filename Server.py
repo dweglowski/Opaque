@@ -393,8 +393,9 @@ class ServerController:
 
         post["from"] = username
 
-        self.__database.add_post(post)
+        post_id: int = self.__database.add_post(post)
 
+        post["id"] = str(post_id)
         # ensure all clients recive this message
         self.__send_new_post_to_relevant_users(post)
 
@@ -506,6 +507,45 @@ class ServerController:
         # send this message the client if they are online and have the chat open
         self.__send_new_message_to_relevant_users(post)
 
+
+    def get_my_posts(self, uuid : str) -> TYPE_POSTS:
+        """Returns all posts made by the current user along with analytics data."""
+        username : str = self.get_username(uuid)
+        all_posts : TYPE_POSTS = self.get_posts()
+
+        my_posts : TYPE_POSTS = []
+
+        post : TYPE_POST
+        for post in all_posts:
+            if post["from"] == username:
+                post |= self.get_analytics_data_for_post(post["id"])
+                my_posts.append(post)
+
+        my_posts = my_posts[::-1] # most recent first
+        return my_posts
+    
+    def get_analytics_data_for_post(self, postid : str) -> typing.Dict[str, int | str | float]:
+        """Returns analytics data for a particular post."""
+        # placeholder implementation
+        data : typing.Dict[str, str] = self.__database.get_analytics_for_post(postid)
+        data["star_score"] = data["star_score"] / (max(1, data["num_ratings"])) # average star score
+        
+        return data
+    
+    def update_analytics_data_for_post(self, postid : str, reactions_encrypted : str, avg_view_duration_seconds : float) -> None:
+        """Updates analytics data for a particular post."""
+        self.__database.update_reactions(postid, reactions_encrypted)
+        self.__database.update_average_view_time(postid, avg_view_duration_seconds)
+
+    def increment_post_analytics_view_count(self, postid : str) -> None:
+        """Increments the view count for a particular post."""
+        current_view_count : int = self.__database.get_analytics_for_post(postid).get("views",0)
+        self.__database.update_view_count(postid, current_view_count + 1)
+
+    def increment_post_analytics_star_score(self, postid : str, star_score : float) -> None:
+        """Increments the star score for a particular post."""
+        current_star_score : float = self.__database.get_analytics_for_post(postid).get("star_score",0.0)
+        self.__database.update_star_score(postid, current_star_score + star_score)
 
     def get_profile_picture(self, uuid : str) -> bytes:
         """Finds and returns a profile picture stored on the server."""

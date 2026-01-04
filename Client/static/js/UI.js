@@ -43,6 +43,11 @@ class UI {
     #messages_tab_new_conversation_btn_event_listener_started = false;
     #messages_tab_send_btn_event_listener_started = false;
 
+    #my_posts_tab_open_btn;
+    #my_posts_tab_container;
+    #my_posts_tab_close_btn;
+
+
     #filter_dropdown;
 
     #posts_container;
@@ -56,6 +61,10 @@ class UI {
     #new_post_images_container;
     #new_post_image_template;
     #new_post_image_upload;
+
+
+    #analytics_tracker_seen_yet = {}; // stores whether each post id has been seen yet to only add a single view per session
+    #analytics_tracker_start_times = {}; // stores when the user started viewing each post id to calculate time spent viewing
 
 
     constructor(client_controller_callback){
@@ -236,6 +245,14 @@ class UI {
         this.#messages_tab_close_btn = document.getElementById("MessagesTabClose");
         this.#messages_tab_close_btn.addEventListener("click", this.#close_messages_tab.bind(this));
 
+
+
+        this.#my_posts_tab_container = document.getElementById("MyPostsTab");
+
+        this.#my_posts_tab_open_btn = document.getElementById("MyPostsTabOpen");
+        this.#my_posts_tab_open_btn.addEventListener("click", this.#open_my_posts_tab.bind(this));
+        this.#my_posts_tab_close_btn = document.getElementById("MyPostsTabClose");
+        this.#my_posts_tab_close_btn.addEventListener("click", this.#close_my_posts_tab.bind(this));
         
     }
 
@@ -464,7 +481,8 @@ class UI {
         var user_from_display_name = post["fromname"];
         var users_to = post["to"];
         var content = post["content"];
-        this.#display_post(user_from, user_from_display_name, users_to, content);
+        var post_id = post["id"];
+        this.#display_post(user_from, user_from_display_name, users_to, content, post_id);
 
         if (this.#filter_dropdown.value == "best" || this.#filter_dropdown.value == "new"){
             // scroll top
@@ -477,7 +495,7 @@ class UI {
     
     }
 
-    #display_post(from, from_display_name, to, content){
+    #display_post(from, from_display_name, to, content, post_id){
         var message_container = document.createElement("div");
         message_container.className = "post";
         this.#posts_container.appendChild(message_container);
@@ -511,6 +529,34 @@ class UI {
         var content_text = document.createElement("p");
         content_text.textContent = content;
         message_container.appendChild(content_text);
+
+        // analytics tracker, tracks when post is in view
+        var analytics_tracker = document.createElement("div");
+        analytics_tracker.className = "post_analytics_tracker";
+        message_container.appendChild(analytics_tracker);
+        analytics_tracker.style.height="1px";
+        const _this = this;
+        
+        // if comes into view, record a view and when leaves view, record time spent
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // post is in view
+                    if (!(post_id in _this.#analytics_tracker_start_times)){
+                        // post just came into view
+                        _this.#analytics_tracker_onview(post_id);
+                    }
+                }
+                else {
+                    if (post_id in _this.#analytics_tracker_start_times){
+                        // post just left view
+                        _this.#analytics_tracker_onview_end(post_id);
+                    }
+                }
+            });
+        });
+
+        observer.observe(analytics_tracker);
 
     }
     
@@ -623,6 +669,141 @@ class UI {
         var content = document.getElementById("NewMessage").value;
         document.getElementById("NewMessage").value = "";
         this.#client_controller_callback.add_message(content);
+    }
+
+    #open_my_posts_tab(){
+        this.#my_posts_tab_container.style.display="block";
+        this.#MainContainer.style.filter="blur(5px)";
+        this.#client_controller_callback.get_my_posts();
+    }
+    #close_my_posts_tab(){
+        this.#my_posts_tab_container.style.display="none";
+        this.#MainContainer.style.filter="";
+    }
+
+
+    display_my_posts(posts){
+        var my_posts_container = document.getElementById("MyPostsContainer");
+        my_posts_container.innerHTML="";
+
+        posts.forEach(post => {
+            var from = post["from"];
+            var from_display_name = post["fromname"];
+            var to = post["to"];
+            var content = post["content"];
+
+            var message_container = document.createElement("div");
+            message_container.className = "post";
+            my_posts_container.appendChild(message_container);
+
+            var from_text = document.createElement("a");
+            from_text.href="#profile";
+            from_text.textContent = `From: ${from_display_name}`;
+            from_text.addEventListener("click", this.#user_search.bind(this, from));
+            message_container.appendChild(from_text);
+
+            var to_text = document.createElement("p");
+            to_text.textContent = `To: ${to}`;
+            message_container.appendChild(to_text);
+
+            
+            var images = [...content.matchAll(/\{\{picture:([\w-]+)\}\}/g)];
+            
+            for (var i = 0; i < images.length; i++) {
+
+                var imgid = images[i][1];
+
+                var img = document.createElement("img");
+                img.src = "/uploads/post_pictures/"+imgid+".png";
+                img.style.width="500px";
+                message_container.appendChild(img);
+            }
+            
+            content = content.replace(/\{\{picture:[\w-]+\}\}/g,"");
+            var content_text = document.createElement("p");
+            content_text.textContent = content;
+            message_container.appendChild(content_text);
+
+
+            var analytics_container = document.createElement("div");
+            analytics_container.className = "post_analytics";
+            message_container.appendChild(analytics_container);
+
+            var views_text = document.createElement("p");
+            views_text.textContent = `Views: ${post["Views"]}`;
+            analytics_container.appendChild(views_text);
+
+            var likes_text = document.createElement("p");
+            likes_text.textContent = `Likes: ${post["Likes"]}`;
+            analytics_container.appendChild(likes_text);
+
+            var hearts_text = document.createElement("p");
+            hearts_text.textContent = `Hearts: ${post["Hearts"]}`;
+            analytics_container.appendChild(hearts_text);
+            
+            var laughs_text = document.createElement("p");
+            laughs_text.textContent = `Laughs: ${post["Laughs"]}`;
+            analytics_container.appendChild(laughs_text);
+
+            var surprises_text = document.createElement("p");
+            surprises_text.textContent = `Surprises: ${post["Surprises"]}`;
+            analytics_container.appendChild(surprises_text);
+
+            var sads_text = document.createElement("p");
+            sads_text.textContent = `Sads: ${post["Sads"]}`;
+            analytics_container.appendChild(sads_text);
+
+            var angrys_text = document.createElement("p");
+            angrys_text.textContent = `Angrys: ${post["Angrys"]}`;
+            analytics_container.appendChild(angrys_text);
+
+            var fire_text = document.createElement("p");
+            fire_text.textContent = `Fire: ${post["Fire"]}`;
+            analytics_container.appendChild(fire_text);
+
+            var computers_text = document.createElement("p");
+            computers_text.textContent = `Computers: ${post["Computers"]}`;
+            analytics_container.appendChild(computers_text);
+
+            var avg_view_duration_text = document.createElement("p");
+            avg_view_duration_text.textContent = `Avg View Duration: ${post["avg_view_duration"]} seconds`;
+            analytics_container.appendChild(avg_view_duration_text);
+
+            var stars_text = document.createElement("p");
+            stars_text.textContent = `Stars: ${post["Stars"]}`;
+            analytics_container.appendChild(stars_text);
+
+        });
+    }
+
+
+
+
+    #analytics_tracker_onview(post_id){
+        
+        this.#analytics_tracker_start_times[post_id] = Date.now();
+    }
+    #analytics_tracker_onview_end(post_id){
+        if (post_id in this.#analytics_tracker_start_times){
+            var start_time = this.#analytics_tracker_start_times[post_id];
+            delete this.#analytics_tracker_start_times[post_id];
+
+            var end_time = Date.now();
+            var duration_seconds = (end_time - start_time) / 1000;
+
+            if (duration_seconds > 0.5){
+                // only count views longer than 0.5 seconds
+                if (!(post_id in this.#analytics_tracker_seen_yet)){
+                    this.#analytics_tracker_seen_yet[post_id] = true;
+                    this.#client_controller_callback.increment_post_analytics_view_count(post_id);
+                }
+
+                // this.#client_controller_callback.record_post_view_duration(post_id, duration_seconds);
+                console.log("Post "+post_id+" viewed for "+duration_seconds+" seconds.");
+            }
+
+            delete this.#analytics_tracker_start_times[post_id];
+        }
     }
 
 }

@@ -1,12 +1,13 @@
 import { SocketAPI } from "./API.js";
-import {UI} from "./UI.js"
-
+import { UI } from "./UI.js"
+import { CryptographyController } from "./Cryptography.js";
 
 
 class Client {
 
     #api;
     #ui;
+    #cryptography_controller
 
     #logged_in = false;
 
@@ -16,8 +17,12 @@ class Client {
     #open_conversation_username = ""; // the username of the currently open conversation
     
     constructor(){
-        
-        // initialise and start socket api connection, pass in self as callback
+
+        // initialise cryptography controller
+        this.#cryptography_controller = new CryptographyController();
+
+
+        // initialise and start socket api connection, pass in self and cryptography controller as callback
         this.#api = new SocketAPI(this);
 
         // ui controller, pass in self as callback
@@ -36,36 +41,6 @@ class Client {
         this.#api.request_salt(username);
     }
 
-    /** Hashes the password before it is sent to the server, uses PBKDF2 for security */
-    async #hash(password, salt){
-        var iterations = 500_000;
-        var hash = 'SHA-256';
-        var length = 64;
-
-        var enc = new TextEncoder();
-        var key = await crypto.subtle.importKey(
-            'raw',
-            enc.encode(password),
-            'PBKDF2',
-            false,
-            ['deriveBits']
-        );
-        
-        enc = new TextEncoder();
-        var hash = await crypto.subtle.deriveBits(
-          { name: 'PBKDF2', hash: hash, salt: enc.encode(salt), iterations : iterations },
-          key,
-          length * 8
-        )
-
-        return btoa(String.fromCharCode(...new Uint8Array(hash)));
-    }
-
-    /** Generates the salt for a new user */
-    #hash_generate_salt() {
-        var salt = crypto.getRandomValues(new Uint8Array(32));
-        return btoa(String.fromCharCode(...salt));
-    }
 
 
     /** Called the moment the salt is recived for login */
@@ -74,7 +49,7 @@ class Client {
         var password = this.#login_password;
         this.#login_password = "";
 
-        var hash = await this.#hash(password, salt);
+        var hash = await this.#cryptography_controller.hash(password, salt);
 
         this.#api.login(username, hash);
     }
@@ -98,9 +73,9 @@ class Client {
     }
     
     async signup(username, display_name, password){
-        var salt = this.#hash_generate_salt();
+        var salt = this.#cryptography_controller.hash_generate_salt();
         
-        var hash = await this.#hash(password, salt);
+        var hash = await this.#cryptography_controller.hash(password, salt);
 
         this.#api.signup(username, display_name, hash, salt);
     }

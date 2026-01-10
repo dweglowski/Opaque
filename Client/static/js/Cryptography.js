@@ -22,6 +22,16 @@ class CryptographyController {
     #AnalyticsEncryptionClientPrivateKey = null;
     
     
+    /** Convert an array buffer to a base64 string */
+    array_buffer_to_base64(buffer) {
+        var binary = "";
+        var bytes = new Uint8Array(buffer);
+        for (var i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+    }
+
     /** Hashes the password before it is sent to the server, uses PBKDF2 for security */
     async hash(password, salt){
         var iterations = 500_000;
@@ -44,13 +54,13 @@ class CryptographyController {
           length * 8
         )
 
-        return btoa(String.fromCharCode(...new Uint8Array(hash)));
+        return this.array_buffer_to_base64(hash);;
     }
 
     /** Generates the salt for a new user */
     hash_generate_salt() {
         var salt = crypto.getRandomValues(new Uint8Array(32));
-        return btoa(String.fromCharCode(...salt));
+        return this.array_buffer_to_base64(salt);
     }
     
 
@@ -59,6 +69,7 @@ class CryptographyController {
         this.#master_key = await this.#derive_encryption_key_from_password(password, salt);
     }
 
+    /** Used to turn a user password into an encryption key */
     async #derive_encryption_key_from_password(password, salt) {
 
         var enc = new TextEncoder();
@@ -86,6 +97,7 @@ class CryptographyController {
         );
     }
 
+    /** Used to encrypt keys before storing on the server */
     async #encrypt_key_with_master_key(key) {
         const iv = crypto.getRandomValues(new Uint8Array(12));  // Initialization vector, means that identical messages have different ciphertexts, required for js's crypto library
 
@@ -96,8 +108,8 @@ class CryptographyController {
             enc.encode(key)
         );
 
-        var ciphertext_str = btoa(String.fromCharCode(...new Uint8Array(ciphertext)));
-        var iv_str = btoa(String.fromCharCode(...iv));
+        var ciphertext_str = this.array_buffer_to_base64(ciphertext);
+        var iv_str = this.array_buffer_to_base64(iv);
 
         return iv_str + ciphertext_str;
     }
@@ -116,10 +128,166 @@ class CryptographyController {
             ciphertext
         );
 
-        return String.fromCharCode(...new Uint8Array(decrypted));
+        return this.array_buffer_to_base64(decrypted);
     }
     
+    /** Generates keys for public key cryptography */
+    async #generate_asymmetric_keys() {
+        return await crypto.subtle.generateKey(
+            {
+                name: "RSA-OAEP",
+                modulusLength: 2048,
+                publicExponent: new Uint8Array([1, 0, 1]),
+                hash: "SHA-256",
+            },
+            true,
+            ["encrypt", "decrypt"]
+        );
+    }
+
+    /** Encrypt data with RSA */
+    async #encrypt_asymmetric(public_key, data) {
+        var enc = new TextEncoder();
+        var ciphertext = await crypto.subtle.encrypt(
+            {
+                name: "RSA-OAEP",
+            },
+            public_key,
+            enc.encode(data)
+        );
+
+        return this.array_buffer_to_base64(ciphertext);
+    }
+
+    /** Decrypt data with RSA */
+    async #decrypt_asymmetric(private_key, ciphertext_base64) {
+        var ciphertext = Uint8Array.from(atob(ciphertext_base64), c => c.charCodeAt(0));
+        var decrypted = await crypto.subtle.decrypt(
+            {
+                name: "RSA-OAEP",
+            },
+            private_key,
+            ciphertext
+        );
+
+        var enc = new TextDecoder();
+        return enc.decode(decrypted);
+    }
+
+    /** Generates public and private keys for the websocket connection with the server. Returns the client's public key */
+    async generate_encryption_in_transit_keys() {
+        var keypair = await this.#generate_asymmetric_keys();
+        this.#EncryptionInTransitClientPublicKey = keypair.publicKey;
+        this.#EncryptionInTransitClientPrivateKey = keypair.privateKey;
+
+        return this.array_buffer_to_base64(await crypto.subtle.exportKey("spki", this.#EncryptionInTransitClientPublicKey));
+    }
+
+    /** Remember the server's websocket public key */
+    set_encryption_in_transit_server_public_key(server_public_key) {
+        var bytes = Uint8Array.from(atob(server_public_key), c => c.charCodeAt(0))
+
+        this.#EncryptionInTransitServerPublicKey = crypto.subtle.importKey(
+            "spki",
+            bytes.buffer,
+            {
+                name: "RSA-OAEP",
+                hash: "SHA-256",
+            },
+            true,
+            ["encrypt"]
+        );
+    }
 
 
+    /** Generate a public private key for e2e encyrpted direct messages. Only ever called on signup. Returns public key and encrypted form of private key. */
+    async generate_direct_messaging_e2e_keys() {
+        var keypair = await this.#generate_asymmetric_keys();
+        this.#DirectMessagingE2EClientPublicKey = keypair.publicKey;
+        this.#DirectMessagingE2EClientPrivateKey = keypair.privateKey;
+
+        var exported_public_key = await crypto.subtle.exportKey("spki", this.#DirectMessagingE2EClientPublicKey);
+        var exported_private_key = await crypto.subtle.exportKey("pkcs8", this.#DirectMessagingE2EClientPrivateKey);
+
+        var encrypted_private_key = await this.#encrypt_key_with_master_key(this.array_buffer_to_base64(exported_private_key));
+
+        return {
+            "public_key" : this.array_buffer_to_base64(exported_public_key),
+            "encrypted_private_key" : encrypted_private_key
+        };
+    }
+
+    /** Loads the public and private keys for e2e encrypted direct messages */
+    async load_direct_messaging_e2e_keys(public_key, encrypted_private_key) {
+        var private_key = await this.#decrypt_key_with_master_key(encrypted_private_key);
+
+        var public_key_bytes = Uint8Array.from(atob(public_key), c => c.charCodeAt(0));
+        var private_key_bytes = Uint8Array.from(atob(private_key), c => c.charCodeAt(0));
+
+        this.#DirectMessagingE2EClientPublicKey = await crypto.subtle.importKey(
+            "spki",
+            public_key_bytes.buffer,
+            {
+                name: "RSA-OAEP",
+                hash: "SHA-256",
+            },
+            true,
+            ["encrypt"]
+        );
+
+        this.#DirectMessagingE2EClientPrivateKey = await crypto.subtle.importKey(
+            "pkcs8",
+            private_key_bytes.buffer,
+            {
+                name: "RSA-OAEP",
+                hash: "SHA-256",
+            },
+            true,
+            ["decrypt"]
+        );
+    }
+
+
+
+
+    /** Encrypts the websocket data stream using the encryption in transit keys */
+    encrypt_websocket_data_for_transit(data) {
+        return this.#encrypt_asymmetric(this.#EncryptionInTransitServerPublicKey, data);
+    }
+
+    /** Decrypts the websocket data stream using the encryption in transit keys */
+    decrypt_websocket_data_from_transit(ciphertext) {
+        return this.#decrypt_asymmetric(this.#EncryptionInTransitClientPrivateKey, ciphertext);
+    }
+
+
+    /** Encrypts a direct message using the client's public key (sender copy of content) */
+    encrypt_direct_message_sender_copy(data) {
+        return this.#encrypt_asymmetric(this.#DirectMessagingE2EClientPublicKey, data);
+    }
+
+    /** Encrypts a direct message using the recipient's public key (recipient copy of content) */
+    encrypt_direct_message_recipient_copy(recipient_public_key, data) {
+        var public_key_bytes = Uint8Array.from(atob(recipient_public_key), c => c.charCodeAt(0));
+        var recipient_public_key = crypto.subtle.importKey(
+            "spki",
+            public_key_bytes.buffer,
+            {
+                name: "RSA-OAEP",
+                hash: "SHA-256",
+            },
+            true,
+            ["encrypt"]
+        );
+
+        return this.#encrypt_asymmetric(recipient_public_key, data);
+    }
+
+    /** Decrypts a direct message using the client's private key */
+    decrypt_direct_message(ciphertext) {
+        return this.#decrypt_asymmetric(this.#DirectMessagingE2EClientPrivateKey, ciphertext);
+    }
+
+    
 
 }

@@ -9,9 +9,9 @@ class CryptographyController {
     #master_key = null;
 
     // Used for encrypting websocket connection
-    #EncryptionInTransitClientPublicKey = null;
-    #EncryptionInTransitClientPrivateKey = null;
-    #EncryptionInTransitServerPublicKey = null;
+    #TlsClientPublicKey = null;
+    #TlsClientPrivateKey = null;
+    #TlsServerPublicKey = null;
 
     // Direct messaging end-to-end encryption keys
     #DirectMessagingE2EClientPublicKey = null;
@@ -145,8 +145,25 @@ class CryptographyController {
         );
     }
 
-    /** Encrypt data with RSA */
+    /** Encrypt data with RSA, split into blocks to allow for longer messages */
     async #encrypt_asymmetric(public_key, data) {
+        
+        var ciphertext = "";
+
+        // split data into chunks of 190 characters
+        var chunk_size = 190;
+        
+        for (var i = 0; i < data.length; i += chunk_size) {
+            var chunk = data.slice(i, i + chunk_size);
+            var encrypted_chunk = await this.#encrypt_chunk_asymmetric(public_key, chunk);
+            ciphertext += encrypted_chunk;
+        }
+
+        return ciphertext;
+    }
+
+    /** Encrypt a chunk of data with RSA */
+    async #encrypt_chunk_asymmetric(public_key, data) {
         var enc = new TextEncoder();
         var ciphertext = await crypto.subtle.encrypt(
             {
@@ -155,13 +172,27 @@ class CryptographyController {
             public_key,
             enc.encode(data)
         );
-
         return this.array_buffer_to_base64(ciphertext);
     }
 
     /** Decrypt data with RSA */
-    async #decrypt_asymmetric(private_key, ciphertext_base64) {
-        var ciphertext = Uint8Array.from(atob(ciphertext_base64), c => c.charCodeAt(0));
+    async #decrypt_asymmetric(private_key, ciphertext) {
+        var plaintext = "";
+
+        // split ciphertext by ==
+        var chunks = ciphertext.split("==").filter(chunk => chunk.length > 0);
+        for (var i = 0; i < chunks.length; i++) {
+            var chunk = chunks[i] + "==";
+            var decrypted_chunk = await this.#decrypt_chunk_asymmetric(private_key, chunk);
+            plaintext += decrypted_chunk;
+        }
+
+        return plaintext;
+    }
+
+    /** Decrypt a chunk with RSA */
+    async #decrypt_chunk_asymmetric(private_key, chunk) {
+        var ciphertext = Uint8Array.from(atob(chunk), c => c.charCodeAt(0));
         var decrypted = await crypto.subtle.decrypt(
             {
                 name: "RSA-OAEP",
@@ -175,19 +206,19 @@ class CryptographyController {
     }
 
     /** Generates public and private keys for the websocket connection with the server. Returns the client's public key */
-    async generate_encryption_in_transit_keys() {
+    async generate_tls_keys() {
         var keypair = await this.#generate_asymmetric_keys();
-        this.#EncryptionInTransitClientPublicKey = keypair.publicKey;
-        this.#EncryptionInTransitClientPrivateKey = keypair.privateKey;
+        this.#TlsClientPublicKey = keypair.publicKey;
+        this.#TlsClientPrivateKey = keypair.privateKey;
 
-        return this.array_buffer_to_base64(await crypto.subtle.exportKey("spki", this.#EncryptionInTransitClientPublicKey));
+        return this.array_buffer_to_base64(await crypto.subtle.exportKey("spki", this.#TlsClientPublicKey));
     }
 
     /** Remember the server's websocket public key */
-    set_encryption_in_transit_server_public_key(server_public_key) {
+    async set_tls_server_public_key(server_public_key) {
         var bytes = Uint8Array.from(atob(server_public_key), c => c.charCodeAt(0))
 
-        this.#EncryptionInTransitServerPublicKey = crypto.subtle.importKey(
+        this.#TlsServerPublicKey = await crypto.subtle.importKey(
             "spki",
             bytes.buffer,
             {
@@ -250,14 +281,14 @@ class CryptographyController {
 
 
 
-    /** Encrypts the websocket data stream using the encryption in transit keys */
-    encrypt_websocket_data_for_transit(data) {
-        return this.#encrypt_asymmetric(this.#EncryptionInTransitServerPublicKey, data);
+    /** Encrypts the websocket data stream using the tls keys */
+    async encrypt_websocket_data_tls(data) {
+        return await this.#encrypt_asymmetric(this.#TlsServerPublicKey, data);
     }
 
-    /** Decrypts the websocket data stream using the encryption in transit keys */
-    decrypt_websocket_data_from_transit(ciphertext) {
-        return this.#decrypt_asymmetric(this.#EncryptionInTransitClientPrivateKey, ciphertext);
+    /** Decrypts the websocket data stream using the tls keys */
+    async decrypt_websocket_data_tls(ciphertext) {
+        return await this.#decrypt_asymmetric(this.#TlsClientPrivateKey, ciphertext);
     }
 
 

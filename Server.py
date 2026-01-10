@@ -7,6 +7,7 @@ import re
 import uuid
 
 from Datastructures import Trie, Graph
+from Crypotography import CrypotgraphyController
 
 # Define custom type hints
 from ServerUtils import TYPE_POST, TYPE_POSTS
@@ -16,6 +17,7 @@ class ServerController:
     def __init__(self) -> None:
         """Constructor"""
         
+        self.__init_cryptography()
         self.__init_web_server()
         self.__init_database()
         self.__init_media()
@@ -40,9 +42,14 @@ class ServerController:
         self.__load_connections()
 
 
+    def __init_cryptography(self) -> None:
+        """Initialise the cryptography controller and all logic that should be done to achive this."""
+        self.__cryptography_controller : CrypotgraphyController = CrypotgraphyController()
+        self.__cryptography_controller.generate_server_tls_keys()
+
     def __init_web_server(self) -> None:
         """Initialise the webserver and all logic that should be done to achive this."""
-        self.__webserver : WebServer.WebServerController = WebServer.WebServerController(self)
+        self.__webserver : WebServer.WebServerController = WebServer.WebServerController(self, self.__cryptography_controller)
 
     def __init_database(self) -> None:
         """Initialise the database and all logic that should be done to achive this."""

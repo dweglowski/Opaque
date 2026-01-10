@@ -11,6 +11,7 @@ import websockets.asyncio
 import websockets.asyncio.server
 from hashlib import sha256
 from Datastructures import Queue
+from Crypotography import CrypotgraphyController
 
 
 
@@ -23,10 +24,10 @@ class WebServerController:
     """Controls the web server, including both 
     the socket server for communicating with the client 
     and the flask server to serve GUI."""
-    def __init__(self, server_callback : ServerController) -> None:
+    def __init__(self, server_callback : ServerController, cryptography_controller : CrypotgraphyController) -> None:
         """Constructor"""
 
-        self.__socket_server : WebsocketServerController = WebsocketServerController(server_callback)
+        self.__socket_server : WebsocketServerController = WebsocketServerController(server_callback, cryptography_controller)
         self.__webserver : GuiWebserver = GuiWebserver(server_callback)
 
     def start(self) -> None:
@@ -143,13 +144,14 @@ class WebsocketServerController:
 
     SERVER_IP = "localhost"
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.5"
+    PROTOCOL_VERSION = "1.6"
 
 
 
-    def __init__(self, server_callback : ServerController) -> None:
+    def __init__(self, server_callback : ServerController, cryptography_controller : CrypotgraphyController) -> None:
         """Constructor"""
         self.__server_callback : ServerController = server_callback
+        self.__cryptography_controller : CrypotgraphyController = cryptography_controller
 
         self.__client_connections : typing.Dict[str, WebsocketServer] = {}
 
@@ -177,14 +179,15 @@ class WebsocketServerController:
         # handshake with the client
         successful : bool 
         uuid : str
-        successful, uuid = await self.__process_handshake(websocket)
+        client_public_key : str
+        successful, uuid, client_public_key = await self.__process_handshake(websocket)
 
         if not successful:
             # handshake unsuccesful
             await websocket.close(code=1002, reason="Invalid handshake")
             return
         
-        clientController : WebsocketServer = WebsocketServer(uuid, websocket, self.__server_callback, self)
+        clientController : WebsocketServer = WebsocketServer(uuid, websocket, self.__server_callback, self, self.__cryptography_controller, client_public_key)
 
         # add the client to list of connected clients
         self.__client_connections[uuid] = clientController
@@ -196,12 +199,16 @@ class WebsocketServerController:
         await clientController.start_listening_to_client()
 
 
-    async def __process_handshake(self, client : TYPE_WEBSOCKET_CONNECTION) -> tuple[bool, str | None]:
+    async def __process_handshake(self, client : TYPE_WEBSOCKET_CONNECTION) -> tuple[bool, str | None, str | None]:
         """Processes the handshake with the client. 
-        Returns whether the handshake was succesful and the UUID of the connection.
+        Returns whether the handshake was succesful, the UUID of the connection and the client's public key.
         Handshake:
         C: {"action":"handshake", "version":"[Protocol verison]"}
-        S: {"action":"handshake", "result":"success", "client_secret":"[Client secret]"} 
+        S: {"action":"handshake", "status":"healthy", "client_secret":"[Client secret]"} 
+        C: {"action":"handshake", "result":"success", "client_secret":"[Client secret]"}
+        S: {"action":"upgrade_channel", "method":"RSA", "public_key":"[Server public key]"}
+        #### Start of encrypted communication ####
+        C: {"action":"upgrade_channel", "result":"success", "public_key":"[Client public key]", "client_secret":"[Client secret]"}
         """
 
         data : str = await client.recv(decode=True)
@@ -209,19 +216,19 @@ class WebsocketServerController:
         try:
             if not data:
                 # No data recived, malformed handshake
-                return False, None
+                return False, None, None
             
             data_json : TYPE_JSON = json.loads(data)
 
             if data_json is None or data_json.get("action") != "handshake" or data_json.get("version") is None:
                 # No data recived, malformed handshake
-                return False, None
+                return False, None, None
                  
             requested_version : str = data_json["version"]
             
             if requested_version != self.PROTOCOL_VERSION:
                 # Protocol version mismatch, void connection
-                return False, None
+                return False, None, None
             
             # return a UUID
             uuid : str = self.__server_callback.generate_uuid_for_connection()
@@ -231,17 +238,50 @@ class WebsocketServerController:
 
             response : TYPE_JSON = {
                 "action" : "handshake",
-                "result" : "success",
+                "status" : "healthy",
                 "client_secret" : client_secret,
             }
 
             await client.send(json.dumps(response))
             
+            data = await client.recv(decode=True)
+            data_json = json.loads(data)
+            
+            if data_json is None or data_json.get("action") != "handshake" or data_json.get("result") != "success" or data_json.get("client_secret") != client_secret:
+                # Malformed handshake
+                return False, None, None
+            
+            # Upgrade channel to TLS encryption (only if version >= 1.6 to allow debugging)
+            if self.PROTOCOL_VERSION < "1.6":
+                # Valid handshake completed, no upgrade needed
+                return True, uuid, None
+            
+            response : TYPE_JSON = {
+                "action" : "upgrade_channel",
+                "method" : "RSA",
+                "public_key" : self.__cryptography_controller.get_server_tls_public_key(),
+            }
+
+            await client.send(json.dumps(response))
+
+            encrypted_data : str = await client.recv(decode=True)
+
+            data = self.__cryptography_controller.decrypt_tls(encrypted_data)
+
+            data_json = json.loads(data)
+
+            if data_json is None or data_json.get("action") != "upgrade_channel" or data_json.get("result") != "success" or data_json.get("client_secret") != client_secret or data_json.get("public_key") is None:
+                # Malformed handshake
+                return False, None, None
+            
+            client_public_key : str = data_json["public_key"]
+
+
             # Valid handshake completed
-            return True, uuid
+            return True, uuid, client_public_key
 
         except:
-            return False, None
+            return False, None, None
 
     def handle_client_disconnect(self, uuid : str) -> None:
         """Logic called when a client disconnects."""
@@ -260,7 +300,7 @@ class WebsocketServer:
     RESPONSE_SESSION_MISSMATCH_ERROR : str = json.dumps({"action":"error","reason":"Session missmatch, invalid client secret"})
     RESPONSE_UNAUTHENTICATED_ERROR : str = json.dumps({"action":"error","reason":"Not authenticated"})
 
-    def __init__(self, uuid : str, websocket : TYPE_WEBSOCKET_CONNECTION, server_callback : ServerController, controller_callback : WebsocketServerController) -> None:
+    def __init__(self, uuid : str, websocket : TYPE_WEBSOCKET_CONNECTION, server_callback : ServerController, controller_callback : WebsocketServerController, cryptography_controller : CrypotgraphyController, client_public_key : str) -> None:
         """Constructor"""
 
         self.__uuid : str = uuid
@@ -269,12 +309,16 @@ class WebsocketServer:
 
         self.__server_callback : ServerController = server_callback
         self.__controller_callback : WebsocketServerController = controller_callback
+        self.__cryptography_controller : CrypotgraphyController = cryptography_controller
 
         self.__connected : bool = True
 
         # create message queue for processing data in and data out
         self.__queue_data_out : Queue[str] = Queue()
         self.__queue_data_in : Queue[str] = Queue()
+
+        # store the client's public key for TLS encryption
+        self.__client_public_key: str = client_public_key
 
     async def start_listening_to_client(self) -> None:
         """Start revice and send mainloops for communicating with client."""
@@ -298,7 +342,14 @@ class WebsocketServer:
                 await asyncio.sleep(0.1)
                 continue
             
+            encrypt: bool = False
+            if self.__client_public_key is not None and self.__controller_callback.PROTOCOL_VERSION >= "1.6":
+                encrypt = True
+
             data : str = self.__queue_data_out.dequeue()
+            if encrypt:
+                data = self.__cryptography_controller.encrypt_tls(data, self.__client_public_key)
+
             await self.__websocket.send(data)
 
     def __send_response(self, data : str) -> None:
@@ -843,6 +894,10 @@ class WebsocketServer:
         Calls back to Server.ServerController to process request."""
 
         try:
+
+            if self.__client_public_key is not None:
+                # decrypt data
+                data = self.__cryptography_controller.decrypt_tls(data)
 
             json_data : TYPE_JSON = json.loads(data)
 

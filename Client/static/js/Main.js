@@ -22,9 +22,9 @@ class Client {
         this.#cryptography_controller = new CryptographyController();
 
 
-        // initialise and start socket api connection, pass in self and cryptography controller as callback
-        this.#api = new SocketAPI(this);
-
+        // initialise and start socket api connection, pass in self as callback and cryptography controller
+        this.#api = new SocketAPI(this, this.#cryptography_controller);
+        
         // ui controller, pass in self as callback
         this.#ui = new UI(this);
 

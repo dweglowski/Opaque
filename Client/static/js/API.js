@@ -6,18 +6,20 @@ class SocketAPI {
 
     SERVER_IP = "localhost";
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.5"
+    PROTOCOL_VERSION = "1.6"
 
     #client_controller_callback;
+    #cryptography_controller;
 
     #socket;
     #socket_connected = false;
 
     #client_secret;
+    #connection_upgraded = false;
 
-    
-    constructor(client_controller_callback){
+    constructor(client_controller_callback, cryptography_controller){
         this.#client_controller_callback = client_controller_callback;
+        this.#cryptography_controller = cryptography_controller;
 
         this.#init_socket_connection();
     }
@@ -39,15 +41,23 @@ class SocketAPI {
         });
     }
 
-    #send_data(data){
+    async #send_data(data, encrypt = true){
         if (this.#socket_connected){
+            if (encrypt && this.PROTOCOL_VERSION >= "1.6"){
+                data = await this.#cryptography_controller.encrypt_websocket_data_tls(data);
+            }
+
             this.#socket.send(data);
         }
     }
 
     /** Performs the required handshake with the server.
     C: {"action":"handshake", "version":"[Protocol verison]"}
-    S: {"action":"handshake", "result":"success", "client_secret":"[Client secret]"} 
+    S: {"action":"handshake", "status":"healthy", "client_secret":"[Client secret]"} 
+    C: {"action":"handshake", "result":"success", "client_secret":"[Client secret]"}
+    S: {"action":"upgrade_channel", "method":"RSA", "public_key":"[Server public key]"}
+    #### Start of encrypted communication ####
+    C: {"action":"upgrade_channel", "result":"success", "public_key":"[Client public key]", "client_secret":"[Client secret]"}
     */
     #handshake(){
      
@@ -56,24 +66,55 @@ class SocketAPI {
             "version":this.PROTOCOL_VERSION,
         };
 
-        this.#socket.send(JSON.stringify(request_json));
+        this.#socket.send(JSON.stringify(request_json), false);
         
     }
     #complete_handshake(handshake_reply){
 
-        if (handshake_reply["result"] == "success"){
+        if (handshake_reply["status"] == "healthy"){
             // successful handshake, obtain client secret
             this.#client_secret = handshake_reply["client_secret"];
+
+            var request_json = {
+                "action":"handshake",
+                "result":"success",
+                "client_secret":this.#client_secret,
+            };
+
+            this.#socket.send(JSON.stringify(request_json), false);
+
             this.#socket_connected = true;
         }
 
     }
 
+    async #complete_channel_upgrade(channel_upgrade_reply){
+        await this.#cryptography_controller.set_tls_server_public_key(channel_upgrade_reply["public_key"]);
+        
+        // Generate TLS keys
+        var client_public_key = await this.#cryptography_controller.generate_tls_keys();
+
+        var request_json = {
+            "action":"upgrade_channel",
+            "result":"success",
+            "public_key":client_public_key,
+            "client_secret":this.#client_secret,
+        };
+
+        this.#send_data(JSON.stringify(request_json));
+        this.#connection_upgraded = true;
+    }
 
 
 
 
-    #handle_response(data){
+
+    async #handle_response(data){
+
+        if (this.#connection_upgraded){
+            // decrypt data
+            data = await this.#cryptography_controller.decrypt_websocket_data_tls(data);
+        }
 
         var json = JSON.parse(data);
 
@@ -81,6 +122,9 @@ class SocketAPI {
         
         if (action == "handshake"){
             this.#complete_handshake(json);
+        }
+        else if (action == "upgrade_channel"){
+            this.#complete_channel_upgrade(json);
         }
         else if (action == "result"){
             

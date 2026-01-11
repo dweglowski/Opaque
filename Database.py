@@ -604,6 +604,11 @@ class DatabaseController:
         }
         return analytics
     
+    def get_post_owner(self, post_id: str) -> str:
+        """Returns the owner of a specific post id"""
+        owner: str = self.__posts_db._read_columns_condition(["owner"],"id",post_id)[0][0]
+        return owner
+
     def update_view_count(self, post_id: int, views: int) -> None:
         """Updates the view count for a specific post id"""
         self.__analytics_db.update_views(post_id, views)

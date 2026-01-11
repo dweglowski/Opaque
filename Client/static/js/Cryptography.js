@@ -1,5 +1,7 @@
 export {CryptographyController};
 
+import * as paillierBigint from "https://cdn.jsdelivr.net/npm/paillier-bigint@3.4.1/+esm"; // for homomorphic encryption
+
 class CryptographyController {
 
     /* Logic for all encryption, decryption and key generation */
@@ -21,7 +23,7 @@ class CryptographyController {
     #AnalyticsEncryptionClientPublicKey = null;
     #AnalyticsEncryptionClientPrivateKey = null;
     
-    
+
     /** Convert an array buffer to a base64 string */
     array_buffer_to_base64(buffer) {
         var binary = "";
@@ -351,5 +353,119 @@ class CryptographyController {
 
         return noisy_star_score;
     }
+
+
+
+    /** Generates keys for homomorphic encryption */
+    async #generate_homomorphic_keys() {
+        return await paillierBigint.generateRandomKeys(1024);
+    }
+
+    async #load_homomorphic_public_key(public_key) {
+        var public_key_json = JSON.parse(public_key);
+        return new paillierBigint.PublicKey(BigInt(public_key_json.n), BigInt(public_key_json.g));
+    }
+
+    async #load_homomorphic_private_key(private_key) {
+        var private_key_json = JSON.parse(private_key);
+        return new paillierBigint.PrivateKey(
+            BigInt(private_key_json.lambda),
+            BigInt(private_key_json.mu),
+            new paillierBigint.PublicKey(BigInt(private_key_json.n), BigInt(private_key_json.g))
+        );
+    }
+
+    /** Encrypt data with homomorphic encryption */
+    async #encrypt_homomorphic(public_key, data) {
+        return await public_key.encrypt(BigInt(data));
+    }
+
+    /** Add two bits of data under homomorphic encryption */
+    async #add_homomorphic(public_key, ciphertext1, ciphertext2) {
+        return await public_key.addition(ciphertext1, ciphertext2);
+    }
+
+    /** Decrypt data with homomorphic encryption */
+    async #decrypt_homomorphic(private_key, ciphertext) {
+        return await private_key.decrypt(BigInt(ciphertext.toString()));
+    }
+
+
+    /** Generate a public private key for homomorphic encyrpted analytics. Only ever called on signup. Returns public key and encrypted form of private key. */
+    async generate_analytics_keys() {
+        var keypair = await this.#generate_homomorphic_keys();
+        this.#AnalyticsEncryptionClientPublicKey = keypair.publicKey;
+        this.#AnalyticsEncryptionClientPrivateKey = keypair.privateKey;
+
+        var exported_public_key = JSON.stringify({n: this.#AnalyticsEncryptionClientPublicKey.n.toString(), g: this.#AnalyticsEncryptionClientPublicKey.g.toString()});
+        var exported_private_key = JSON.stringify({lambda: this.#AnalyticsEncryptionClientPrivateKey.lambda.toString(), mu: this.#AnalyticsEncryptionClientPrivateKey.mu.toString(), n: this.#AnalyticsEncryptionClientPrivateKey.publicKey.n.toString(), g: this.#AnalyticsEncryptionClientPrivateKey.publicKey.g.toString()});
+
+        var encrypted_private_key = await this.#encrypt_key_with_master_key(exported_private_key);
+
+        return {
+            "public_key" : exported_public_key,
+            "encrypted_private_key" : encrypted_private_key
+        };
+    }
+
+    /** Loads the public and private keys for homomorphic encrypted analytics */
+    async load_analytics_keys(public_key, encrypted_private_key) {
+        var private_key = await this.#decrypt_key_with_master_key(encrypted_private_key);
+
+        var public_key_bytes = await this.#load_homomorphic_public_key(public_key);
+        var private_key_bytes = await this.#load_homomorphic_private_key(private_key);
+
+        this.#AnalyticsEncryptionClientPublicKey = public_key_bytes;
+        this.#AnalyticsEncryptionClientPrivateKey = private_key_bytes;
+    }
+
+    /** Decrypt analytics with own private key */
+    async decrypt_analytics(ciphertext) {
+        return await this.#decrypt_homomorphic(this.#AnalyticsEncryptionClientPrivateKey, ciphertext);
+    }
+
+    /** Encrypt analytics with own public key */
+    async #encrypt_analytics(plaintext) {
+        return await this.#encrypt_homomorphic(this.#AnalyticsEncryptionClientPublicKey, plaintext);
+    }
+
+    /** Encrypt analytics with another public key */
+    async #encrypt_analytics_with_key(public_key, plaintext) {
+
+        public_key = await this.#load_homomorphic_public_key(public_key);
+
+        return await this.#encrypt_homomorphic(public_key, plaintext);
+    }
+
+    /** Adds two values under homomorphic encryption using another user's public key */
+    async #add_analytics_with_key(public_key, ciphertext1, ciphertext2) {
+
+        public_key = await this.#load_homomorphic_public_key(public_key);
+
+        return await this.#add_homomorphic(public_key, ciphertext1, ciphertext2);
+    }
+
+    /** Adds an intiger to a homomorphic ciphertext using another user's public key */
+    async add_int_to_analytics_with_key(public_key, ciphertext, integer) {
+        var ciphertext1 = BigInt(ciphertext);
+        var ciphertext2 = await this.#encrypt_analytics_with_key(public_key, integer);
+
+        var new_ciphertext = await this.#add_analytics_with_key(public_key, ciphertext1, ciphertext2);
+        return new_ciphertext.toString();
+    }
+
+    /** Returns starting point for encrypted view duration */
+    async get_encrypted_view_duration_start() {
+        return (await this.#encrypt_analytics(0)).toString();
+    }
+
+    /** Returns starting point for encrypted reactions */
+    async get_encrypted_reactions_start() {
+        return (await this.#encrypt_analytics(0)).toString();
+    }
+
+
+
+  
 
 }

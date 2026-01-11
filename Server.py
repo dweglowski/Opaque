@@ -432,8 +432,8 @@ class ServerController:
 
 
 
-    def add_post(self, post : TYPE_POST, username : str) -> None:
-        """Adds a new post to the database."""
+    def add_post(self, post : TYPE_POST, username : str) -> int:
+        """Adds a new post to the database. Returns the post ID."""
 
         post["from"] = username
 
@@ -442,6 +442,8 @@ class ServerController:
         post["id"] = str(post_id)
         # ensure all clients recive this message
         self.__send_new_post_to_relevant_users(post)
+
+        return post_id
 
 
     
@@ -573,6 +575,10 @@ class ServerController:
         # placeholder implementation
         data : typing.Dict[str, str] = self.__database.get_analytics_for_post(postid)
         data["star_score"] = data["star_score"] / (max(1, data["num_ratings"])) # average star score
+        
+        # add the encryption public key, keeps everything together
+        owner : str = self.__database.get_post_owner(postid)
+        data["encryption_public_key"] = self.__database.get_analytics_public_key(owner)
         
         return data
     

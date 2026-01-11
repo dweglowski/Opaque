@@ -193,6 +193,7 @@ class SocketAPI {
                     }
                     break;
                 case "AddPost":
+                    this.#client_controller_callback.post_added_successfully(json["postid"]);
                     break;
                 case "UpdateProfilePicture":
                     break;
@@ -211,6 +212,10 @@ class SocketAPI {
                 case "GetDmPublicKey":
                     var public_key = json["data"];
                     this.#client_controller_callback.handle_recived_conversation_public_key(public_key);
+                    break;
+                case "RequestPostAnalytics":
+                    var analytics = json["data"];
+                    this.#client_controller_callback.handle_recived_post_analytics(analytics);
                     break;
                 }
             }
@@ -565,6 +570,33 @@ class SocketAPI {
             "csec":this.#client_secret,
             "postid":post_id,
             "star_score":rating_value,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+    }
+
+    /** Get a post's current analytics data */
+    get_post_analytics(post_id){
+
+        var request_json = {
+            "action":"analytics",
+            "command":"RequestPostAnalytics",
+            "csec":this.#client_secret,
+            "postid":post_id,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+    }
+
+    /** Set post analytics */
+    set_post_analytics(post_id, analytics_data){
+
+        var request_json = {
+            "action":"analytics",
+            "command":"UpdatePostAnalytics",
+            "csec":this.#client_secret,
+            "postid":post_id,
+            "data":analytics_data,
         };
 
         this.#send_data(JSON.stringify(request_json))

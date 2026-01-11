@@ -472,12 +472,13 @@ class WebsocketServer:
             "content": post["content"], 
             }
 
-        self.__server_callback.add_post(sanitised_post, username)
+        post_id : int = self.__server_callback.add_post(sanitised_post, username)
 
         response_json : dict = {
             "action":"result",
             "command":"AddPost",
-            "success":True
+            "success":True,
+            "postid":post_id,
         }
 
         self.__send_response(json.dumps(response_json))
@@ -837,6 +838,8 @@ class WebsocketServer:
 
         analytics : typing.Dict[str,int] = self.__server_callback.get_analytics_data_for_post(post_id)
 
+        analytics["postid"] = post_id
+
         response_json = {
             "action":"result",
             "command":"RequestPostAnalytics",
@@ -855,8 +858,8 @@ class WebsocketServer:
             return self.RESPONSE_SESSION_MISSMATCH_ERROR
 
         post_id : int = json_data["postid"]
-        reactions_encrypted : str = json_data["reactions_encrypted"]
-        avg_view_duration_seconds : float = json_data["avg_view_duration_seconds"]
+        reactions_encrypted : str = json_data["data"]["reactions_encrypted"]
+        avg_view_duration_seconds : float = json_data["data"]["avg_view_duration_seconds"]
 
         self.__server_callback.update_analytics_data_for_post(post_id, reactions_encrypted, avg_view_duration_seconds)
 
@@ -1058,10 +1061,6 @@ class WebsocketServer:
                     case "GetDmPublicKey":
 
                         self.__handle_get_dm_public_key(json_data)
-
-                    case "GetAnalyticsPublicKey":
-
-                        self.__handle_get_analytics_public_key(json_data)
 
             elif action == "analytics":
                 command : str = json_data["command"]

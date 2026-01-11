@@ -821,8 +821,8 @@ class UI {
                     this.#analytics_tracker_seen_yet[post_id] = true;
                     this.#client_controller_callback.increment_post_analytics_view_count(post_id);
                 }
-
-                // this.#client_controller_callback.record_post_view_duration(post_id, duration_seconds);
+                duration_seconds = Math.ceil(duration_seconds);
+                this.#client_controller_callback.increment_post_view_duration(post_id, duration_seconds);
                 console.log("Post "+post_id+" viewed for "+duration_seconds+" seconds.");
             }
 

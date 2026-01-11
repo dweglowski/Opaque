@@ -16,6 +16,8 @@ class Client {
 
     #open_conversation_username = ""; // the username of the currently open conversation
     #open_conversation_public_key = ""; // the public key of the conversation currently open
+
+    #update_post_analytics_current_data = {"-1":{},}; // used to store the latest recived post analytics data when updating post data
     
     constructor(){
 
@@ -81,7 +83,7 @@ class Client {
     /** When encryption keys are recived, load them into cryptography controller */
     recived_user_encryption_keys(dm_public, dm_encrypted_private, analytics_public, analytics_encrypted_private){
         this.#cryptography_controller.load_direct_messaging_e2e_keys(dm_public, dm_encrypted_private);
-        //TODO: load analytics keys
+        this.#cryptography_controller.load_analytics_keys(analytics_public, analytics_encrypted_private);
     }
 
 
@@ -125,7 +127,7 @@ class Client {
     /** On signup create all encryption keys and send to server */
     async #create_user_encryption_keys(){
         var dm_keys = await this.#cryptography_controller.generate_direct_messaging_e2e_keys();
-        var analytics_keys = {"public_key":"PLACEHOLDER","encrypted_private_key":"PLACEHOLDER"};
+        var analytics_keys = await this.#cryptography_controller.generate_analytics_keys();
 
         this.#api.set_encryption_keys(dm_keys["public_key"], dm_keys["encrypted_private_key"], analytics_keys["public_key"], analytics_keys["encrypted_private_key"]);
 
@@ -245,12 +247,12 @@ class Client {
     get_my_posts(){
         this.#api.get_my_posts();
     }
-    my_posts_results(posts){
+    async my_posts_results(posts){
         var posts_with_decrypted_analytics = [];
         for (var i = 0; i < posts.length; i++) {
             var post = posts[i];
             // decrypt analytics data
-            post = this.#decrypt_analytics_data(post);
+            post = await this.#decrypt_analytics_data(post);
 
             posts_with_decrypted_analytics.push(post);
         }
@@ -258,7 +260,7 @@ class Client {
         this.#ui.display_my_posts(posts_with_decrypted_analytics);
     }
 
-    #decrypt_analytics_data(post){
+    async #decrypt_analytics_data(post){
         var decrypted_post = post;
         decrypted_post["Views"] = post["views"];
 
@@ -271,7 +273,15 @@ class Client {
         decrypted_post["Fire"] = 0;
         decrypted_post["Computers"] = 0;
 
-        decrypted_post["avg_view_duration"] = 0;
+        var view_duration_encrypted = post["average_view_time_encrypted"];
+        // decrypt view duration with homomorphic encryption
+        var view_duration_decrypted = await (this.#cryptography_controller.decrypt_analytics(view_duration_encrypted));
+        var avaerage_view_duration_seconds = Number(view_duration_decrypted) / Number(post["views"]);
+        if (isNaN(avaerage_view_duration_seconds)){
+            avaerage_view_duration_seconds = 0;
+        }
+
+        decrypted_post["avg_view_duration"] = avaerage_view_duration_seconds;
         
         decrypted_post["Stars"] = post["star_score"];
         // clamp stars to 0-5
@@ -292,6 +302,48 @@ class Client {
     rate_post(post_id, rating_value){
         var noisy_star_score = this.#cryptography_controller.apply_differential_privacy_to_star_score(rating_value);
         this.#api.rate_post(post_id, noisy_star_score);
+    }
+
+    handle_recived_post_analytics(analytics){
+        this.#update_post_analytics_current_data[analytics["postid"]] = analytics;
+    }
+
+    /** Updates the view duration of a post securely using homomorphic encryption */
+    async increment_post_view_duration(post_id, duration){
+        // retrieve current analytics data for post
+        this.#update_post_analytics_current_data[post_id] = "";
+        this.#api.get_post_analytics(post_id);
+        
+        // wait until analytics data is recived
+        while (this.#update_post_analytics_current_data[post_id] == ""){
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        var current_analytics = this.#update_post_analytics_current_data[post_id];
+        
+        // encrypt duration and add using homomorphic encryption
+
+        var public_key = current_analytics["encryption_public_key"];
+
+        var current_view_duration_encrypted = current_analytics["average_view_time_encrypted"];
+
+        
+        var new_view_duration_encrypted = await this.#cryptography_controller.add_int_to_analytics_with_key(public_key, current_view_duration_encrypted, duration);
+
+
+        current_analytics["avg_view_duration_seconds"] = new_view_duration_encrypted;
+        this.#update_post_analytics_current_data[post_id] = current_analytics;
+
+        this.#api.set_post_analytics(post_id, current_analytics);
+    }
+
+    async #initialise_post_analytics(post_id){
+        var encrypted_reactions_start = await this.#cryptography_controller.get_encrypted_reactions_start();
+        var encrypted_view_duration_start = await this.#cryptography_controller.get_encrypted_view_duration_start();
+        this.#api.set_post_analytics(post_id, {
+            "reactions_encrypted" : encrypted_reactions_start,
+            "avg_view_duration_seconds": encrypted_view_duration_start,
+        });
     }
 
 
@@ -322,6 +374,10 @@ class Client {
         }
 
         this.#api.add_post(content, to);
+    }
+
+    post_added_successfully(post_id){
+        this.#initialise_post_analytics(post_id);
     }
 
     

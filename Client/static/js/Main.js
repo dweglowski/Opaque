@@ -264,14 +264,19 @@ class Client {
         var decrypted_post = post;
         decrypted_post["Views"] = post["views"];
 
-        decrypted_post["Likes"] = 0;
-        decrypted_post["Hearts"] = 0;
-        decrypted_post["Laughs"] = 0;
-        decrypted_post["Surprises"] = 0;
-        decrypted_post["Sads"] = 0;
-        decrypted_post["Angrys"] = 0;
-        decrypted_post["Fire"] = 0;
-        decrypted_post["Computers"] = 0;
+
+        var reactions_encrypted = post["reactions_encrypted"];
+        // decrypt reactions with homomorphic encryption
+        var reactions_vector = await (this.#cryptography_controller.decrypt_analytics(reactions_encrypted));
+        
+        var reactions = ["Likes", "Hearts", "Laughs", "Surprises", "Sads", "Angrys", "Fire", "Computers"];
+
+        for (var i = 0; i < reactions.length; i++) {
+            var reaction_type = reactions[i];
+            var start_power = BigInt(this.#convert_reaction_to_integer(reaction_type));
+            var reaction_count = Number((reactions_vector / start_power) % BigInt(10**5));
+            decrypted_post[reaction_type] = reaction_count;
+        }
 
         var view_duration_encrypted = post["average_view_time_encrypted"];
         // decrypt view duration with homomorphic encryption
@@ -344,6 +349,77 @@ class Client {
             "reactions_encrypted" : encrypted_reactions_start,
             "avg_view_duration_seconds": encrypted_view_duration_start,
         });
+    }
+
+    /** Converts a reaction into the correct power of 10 to add to reactions total */
+    #convert_reaction_to_integer(reaction_type){
+        /* Store reactions to a single intiger
+           5 digits per reaction type
+           10 digits of scratch space to allow for adding some noise each time to prevent brute force decryption
+           Computers Fire Angrys Sads Surprises Laughs Hearts Likes
+        */
+
+        switch(reaction_type){
+            case "Likes":
+                return 1n;
+            case "Hearts":
+                return 10n**5n;
+            case "Laughs":
+                return 10n**10n;
+            case "Surprises":
+                return 10n**15n;
+            case "Sads":
+                return 10n**20n;
+            case "Angrys":
+                return 10n**25n;
+            case "Fire":
+                return 10n**30n;
+            case "Computers":
+                return 10n**35n;
+            case "scratch":
+                return 10n**40n;
+            default:
+                return 0n;
+        }
+    }
+
+    /** Adds a reaction to a post securely using homomorphic encryption */
+    async add_post_reaction(post_id, reaction_type){
+        // retrieve current analytics data for post
+        this.#update_post_analytics_current_data[post_id] = "";
+        this.#api.get_post_analytics(post_id);
+        
+        // wait until analytics data is recived
+        while (this.#update_post_analytics_current_data[post_id] == ""){
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        var current_analytics = this.#update_post_analytics_current_data[post_id];
+        
+        // get integer representation of reaction
+        var reaction_integer = this.#convert_reaction_to_integer(reaction_type);
+
+        // generate random noise to prevent brute force decryption
+        var noise_integer = this.#convert_reaction_to_integer("scratch") * BigInt(this.#cryptography_controller.secure_random_int(1, 1000).toString());
+
+        var total_integer = reaction_integer + noise_integer;
+
+        // encrypt duration and add using homomorphic encryption
+
+        var public_key = current_analytics["encryption_public_key"];
+
+        var current_reactions_state = current_analytics["reactions_encrypted"];
+
+        
+        var new_reactions_encrypted = await this.#cryptography_controller.add_int_to_analytics_with_key(public_key, current_reactions_state, total_integer);
+
+        current_analytics["reactions_encrypted"] = new_reactions_encrypted;
+
+        current_analytics["avg_view_duration_seconds"] = current_analytics["average_view_time_encrypted"];
+
+        this.#update_post_analytics_current_data[post_id] = current_analytics;
+
+        this.#api.set_post_analytics(post_id, current_analytics);
     }
 
 

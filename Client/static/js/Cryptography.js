@@ -333,6 +333,13 @@ class CryptographyController {
         return array[0] / (2 ** 32);
     }
 
+    /** Secure random integer between min and max */
+    secure_random_int(min, max) {
+        var range = max - min + 1;
+        var random_float = this.#secure_random();
+        return min + Math.floor(random_float * range);
+    }
+
     /** Samples the laplace distribution to produce noise for differential privacy */
     #get_laplace_noise(scale) {
         var u = this.#secure_random() - 0.5;
@@ -387,7 +394,8 @@ class CryptographyController {
 
     /** Decrypt data with homomorphic encryption */
     async #decrypt_homomorphic(private_key, ciphertext) {
-        return await private_key.decrypt(BigInt(ciphertext.toString()));
+        var tmp = await private_key.decrypt(BigInt(ciphertext.toString()));
+        return tmp;
     }
 
 

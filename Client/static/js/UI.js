@@ -387,7 +387,6 @@ class UI {
     }
 
     #open_content_select_menu(){
-        console.log(this.#new_post_content_container);
         this.#new_post_content_container.style.display="block";
     }
     
@@ -553,6 +552,35 @@ class UI {
             
             rating_container.appendChild(star_button);
         }
+
+
+        // reactions container
+        var reactions_container = document.createElement("div");
+        reactions_container.className = "post_reactions";
+        message_container.appendChild(reactions_container);
+        var reaction_types = ["Likes", "Hearts", "Laughs", "Surprises", "Sads", "Angrys", "Fire", "Computers"];
+        var reaction_emojis = ["👍","❤️","😂","😮","😢","😡","🔥","💻"];
+        for (var i = 0; i < reaction_types.length; i++) {
+            let reaction_type = reaction_types[i];
+            var reaction_button = document.createElement("button");
+            reaction_button.textContent = reaction_emojis[i];
+            reaction_button.id = "ReactionButton"+post_id+"_"+reaction_type;
+            reaction_button.addEventListener("click", (() => {
+                this.#reaction_button_onclick(post_id, reaction_type);
+            }).bind(this));
+            reactions_container.appendChild(reaction_button);
+        }
+        /*
+        
+        // decrypted_post["Likes"] = 0;
+        // decrypted_post["Hearts"] = 0;
+        // decrypted_post["Laughs"] = 0;
+        // decrypted_post["Surprises"] = 0;
+        // decrypted_post["Sads"] = 0;
+        // decrypted_post["Angrys"] = 0;
+        // decrypted_post["Fire"] = 0;
+        // decrypted_post["Computers"] = 0;
+        */
 
         // analytics tracker, tracks when post is in view
         var analytics_tracker = document.createElement("div");
@@ -757,36 +785,38 @@ class UI {
             views_text.textContent = `Views: ${post["Views"]}`;
             analytics_container.appendChild(views_text);
 
+            var reaction_emojis = ["👍","❤️","😂","😮","😢","😡","🔥","💻"];
+
             var likes_text = document.createElement("p");
-            likes_text.textContent = `Likes: ${post["Likes"]}`;
+            likes_text.textContent = `${reaction_emojis[0]} ${post["Likes"]}`;
             analytics_container.appendChild(likes_text);
 
             var hearts_text = document.createElement("p");
-            hearts_text.textContent = `Hearts: ${post["Hearts"]}`;
+            hearts_text.textContent = `${reaction_emojis[1]} ${post["Hearts"]}`;
             analytics_container.appendChild(hearts_text);
             
             var laughs_text = document.createElement("p");
-            laughs_text.textContent = `Laughs: ${post["Laughs"]}`;
+            laughs_text.textContent = `${reaction_emojis[2]} ${post["Laughs"]}`;
             analytics_container.appendChild(laughs_text);
 
             var surprises_text = document.createElement("p");
-            surprises_text.textContent = `Surprises: ${post["Surprises"]}`;
+            surprises_text.textContent = `${reaction_emojis[3]} ${post["Surprises"]}`;
             analytics_container.appendChild(surprises_text);
 
             var sads_text = document.createElement("p");
-            sads_text.textContent = `Sads: ${post["Sads"]}`;
+            sads_text.textContent = `${reaction_emojis[4]} ${post["Sads"]}`;
             analytics_container.appendChild(sads_text);
 
             var angrys_text = document.createElement("p");
-            angrys_text.textContent = `Angrys: ${post["Angrys"]}`;
+            angrys_text.textContent = `${reaction_emojis[5]} ${post["Angrys"]}`;
             analytics_container.appendChild(angrys_text);
 
             var fire_text = document.createElement("p");
-            fire_text.textContent = `Fire: ${post["Fire"]}`;
+            fire_text.textContent = `${reaction_emojis[6]} ${post["Fire"]}`;
             analytics_container.appendChild(fire_text);
 
             var computers_text = document.createElement("p");
-            computers_text.textContent = `Computers: ${post["Computers"]}`;
+            computers_text.textContent = `${reaction_emojis[7]} ${post["Computers"]}`;
             analytics_container.appendChild(computers_text);
 
             var avg_view_duration_text = document.createElement("p");
@@ -823,7 +853,6 @@ class UI {
                 }
                 duration_seconds = Math.ceil(duration_seconds);
                 this.#client_controller_callback.increment_post_view_duration(post_id, duration_seconds);
-                console.log("Post "+post_id+" viewed for "+duration_seconds+" seconds.");
             }
 
             delete this.#analytics_tracker_start_times[post_id];
@@ -840,6 +869,18 @@ class UI {
             }
             else {
                 star_button.textContent = "☆";
+            }
+        }
+    }
+
+    #reaction_button_onclick(post_id, reaction_type){
+        this.#client_controller_callback.add_post_reaction(post_id, reaction_type);
+
+        // dissable buttons after reaction
+        for (var i = 1; i <= 5; i++) {
+            var reaction_button = document.getElementById("ReactionButton"+post_id+"_"+reaction_type);
+            if (reaction_button){
+                reaction_button.disabled = true;
             }
         }
     }

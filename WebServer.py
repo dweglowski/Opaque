@@ -854,7 +854,7 @@ class WebsocketServer:
         if not self.__validate_session(client_secret):
             return self.RESPONSE_SESSION_MISSMATCH_ERROR
 
-        post_id : int = json_data["postID"]
+        post_id : int = json_data["postid"]
         reactions_encrypted : str = json_data["reactions_encrypted"]
         avg_view_duration_seconds : float = json_data["avg_view_duration_seconds"]
 
@@ -875,7 +875,7 @@ class WebsocketServer:
         if not self.__validate_session(client_secret):
             return self.RESPONSE_SESSION_MISSMATCH_ERROR
 
-        post_id : int = json_data["postID"]
+        post_id : int = json_data["postid"]
         star_score : float = json_data["star_score"]
 
         self.__server_callback.increment_post_analytics_star_score(post_id, star_score)

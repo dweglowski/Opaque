@@ -320,6 +320,36 @@ class CryptographyController {
         return this.#decrypt_asymmetric(this.#DirectMessagingE2EClientPrivateKey, ciphertext);
     }
 
-    
+
+    /** Cryptographically secure version of math.random(), produces a float between 0 and 1 */
+    #secure_random() {
+        // produce a random 32 bit number securely
+        var array = new Uint32Array(1);
+        window.crypto.getRandomValues(array);
+
+        // convert to float between 0 and 1
+        return array[0] / (2 ** 32);
+    }
+
+    /** Samples the laplace distribution to produce noise for differential privacy */
+    #get_laplace_noise(scale) {
+        var u = this.#secure_random() - 0.5;
+        return -scale * Math.sign(u) * Math.log(1 - 2 * Math.abs(u));
+    }
+
+    /** Applies differential privacy to star score rating */
+    apply_differential_privacy_to_star_score(star_score) {
+        var min = 1;
+        var max = 5;
+        var sensitivity = (max - min);
+        var epsilon = 1.8; // lower epsilon for more privacy, found 1.8 provides enough privacy while providing a good average after around 10 ratings, good for demo
+        var scale = sensitivity / epsilon;
+
+        var noise = this.#get_laplace_noise(scale);
+
+        var noisy_star_score = star_score + noise;
+
+        return noisy_star_score;
+    }
 
 }

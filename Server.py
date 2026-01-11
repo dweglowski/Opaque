@@ -316,7 +316,7 @@ class ServerController:
 
         if self.__check_filter_requires_sorting(filter_type):
             # sort posts by metric
-            print("TODO: Sort posts by the relevant metric")
+            all_posts = self.__sort_posts(filter_type, all_posts)
 
         for post in all_posts:
             # only posts that are shared with user
@@ -336,8 +336,17 @@ class ServerController:
     def __sort_posts(self, filter_type : str, posts : TYPE_POSTS) -> TYPE_POSTS:
         """Sorts a list of posts following specific criteria."""
         if filter_type == "new":
-            # requires implementing post metrics first
-            pass
+            return posts[::-1] # most recent first
+
+        if filter_type == "best":
+            # sort by star score
+            star_scores : typing.Dict[str, float] = {}
+            for post in posts:
+                postid : str = post["id"]
+                star_score : float = self.get_analytics_data_for_post(postid).get("star_score", 0.0)
+                star_scores[postid] = star_score
+
+            return sorted(posts, key = lambda post: star_scores[post["id"]], reverse=True)
 
         return posts
 

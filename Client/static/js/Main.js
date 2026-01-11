@@ -289,6 +289,11 @@ class Client {
         this.#api.increment_post_analytics_view_count(post_id);
     }
 
+    rate_post(post_id, rating_value){
+        var noisy_star_score = this.#cryptography_controller.apply_differential_privacy_to_star_score(rating_value);
+        this.#api.rate_post(post_id, noisy_star_score);
+    }
+
 
 
 

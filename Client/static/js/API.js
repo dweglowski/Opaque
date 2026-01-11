@@ -556,4 +556,18 @@ class SocketAPI {
         this.#send_data(JSON.stringify(request_json))
     }
 
+    /** Increment star rating for post */
+    rate_post(post_id, rating_value){
+
+        var request_json = {
+            "action":"analytics",
+            "command":"IncrementPostAnalyticsStarScore",
+            "csec":this.#client_secret,
+            "postid":post_id,
+            "star_score":rating_value,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+    }
+
 }

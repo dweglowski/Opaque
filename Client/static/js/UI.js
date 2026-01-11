@@ -530,6 +530,25 @@ class UI {
         content_text.textContent = content;
         message_container.appendChild(content_text);
 
+
+        // start rating system
+        var rating_container = document.createElement("div");
+        rating_container.className = "post_ratings";
+        message_container.appendChild(rating_container);
+        for (var i = 1; i <= 5; i++) {
+            let value = i; // prevents it changing in event listener
+
+            var star_button = document.createElement("button");
+            star_button.textContent = "☆";
+            star_button.id = "StarScoreButton"+post_id+"_"+i;
+            
+            star_button.addEventListener("click", (() => {
+                this.#star_rating_onclick(post_id, value);
+            }).bind(this));
+            
+            rating_container.appendChild(star_button);
+        }
+
         // analytics tracker, tracks when post is in view
         var analytics_tracker = document.createElement("div");
         analytics_tracker.className = "post_analytics_tracker";
@@ -803,6 +822,20 @@ class UI {
             }
 
             delete this.#analytics_tracker_start_times[post_id];
+        }
+    }
+    #star_rating_onclick(post_id, rating_value){
+        this.#client_controller_callback.rate_post(post_id, rating_value);
+
+        // update buttons after rating
+        for (var i = 1; i <= 5; i++) {
+            var star_button = document.getElementById("StarScoreButton"+post_id+"_"+i);
+            if (i <= rating_value){
+                star_button.textContent = "★";
+            }
+            else {
+                star_button.textContent = "☆";
+            }
         }
     }
 

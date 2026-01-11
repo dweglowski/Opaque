@@ -50,6 +50,8 @@ class Client {
         this.#login_password = "";
 
         var hash = await this.#cryptography_controller.hash(password, salt);
+        
+        this.#cryptography_controller.load_master_key(password);
 
         this.#api.login(username, hash);
     }
@@ -57,6 +59,8 @@ class Client {
     login_success(){
         this.#logged_in=true;
     
+        this.#request_user_encryption_keys();
+
         this.#ui.login_success();
 
         this.#ui.show_main_page();
@@ -68,6 +72,18 @@ class Client {
         this.get_profile_info();
     }
 
+    /** On login, request encryption keys */
+    #request_user_encryption_keys(){
+        this.#api.request_encryption_keys();
+    }
+
+    /** When encryption keys are recived, load them into cryptography controller */
+    recived_user_encryption_keys(dm_public, dm_encrypted_private, analytics_public, analytics_encrypted_private){
+        this.#cryptography_controller.load_direct_messaging_e2e_keys(dm_public, dm_encrypted_private);
+        //TODO: load analytics keys
+    }
+
+
     login_failed(reason){
         this.#ui.login_failed(reason);
     }
@@ -77,6 +93,8 @@ class Client {
         
         var hash = await this.#cryptography_controller.hash(password, salt);
 
+        this.#cryptography_controller.load_master_key(password);
+
         this.#api.signup(username, display_name, hash, salt);
     }
     
@@ -84,6 +102,8 @@ class Client {
         this.#ui.upload_signup_picture();
 
         this.#logged_in=true;
+
+        this.#create_user_encryption_keys();
         
         this.#ui.signup_success();
 
@@ -99,6 +119,15 @@ class Client {
             // allow for time for profile photo to update and then refresh profile info
             this.get_profile_info();
         }, 1000); 
+    }
+
+    /** On signup create all encryption keys and send to server */
+    async #create_user_encryption_keys(){
+        var dm_keys = await this.#cryptography_controller.generate_direct_messaging_e2e_keys();
+        var analytics_keys = {"public_key":"PLACEHOLDER","encrypted_private_key":"PLACEHOLDER"};
+
+        this.#api.set_encryption_keys(dm_keys["public_key"], dm_keys["encrypted_private_key"], analytics_keys["public_key"], analytics_keys["encrypted_private_key"]);
+
     }
 
     signup_failed(reason){

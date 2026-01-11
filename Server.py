@@ -620,7 +620,29 @@ class ServerController:
         """Returns whether the current user is following a particular person."""
         username : str = self.get_username(uuid)
         return self.__following_graph.is_connected(username, connected_username)
+    
+    def set_keys(self, uuid: str, dm_public_key: str, dm_private_key: str, analytics_public_key: str, analytics_private_key: str) -> None:
+        """Stores a user's cryptography keys in the database."""
+        username : str = self.get_username(uuid)
+        self.__database.add_encryption_keys(username, dm_public_key, dm_private_key, analytics_public_key, analytics_private_key)
 
+    def get_dm_public_key(self, username: str) -> str:
+        """Returns a user's direct message public key from the database."""
+        return self.__database.get_dm_public_key(username)
+
+    def get_analytics_public_key(self, username: str) -> str:
+        """Returns a user's analytics public key from the database."""
+        return self.__database.get_analytics_public_key(username)
+
+    def get_user_encryption_keys(self, uuid: str) -> typing.Dict[str, str]:
+        """Returns all encryption keys for a user including encrypted private keys."""
+        username : str = self.get_username(uuid)
+        return {
+            "dm_public": self.__database.get_dm_public_key(username),
+            "dm_private": self.__database.get_dm_private_key(username),
+            "analytics_public": self.__database.get_analytics_public_key(username),
+            "analytics_private": self.__database.get_analytics_private_key(username),
+            }
 
 
 

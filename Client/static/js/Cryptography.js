@@ -128,7 +128,8 @@ class CryptographyController {
             ciphertext
         );
 
-        return this.array_buffer_to_base64(decrypted);
+        var enc = new TextDecoder();
+        return enc.decode(decrypted);
     }
     
     /** Generates keys for public key cryptography */

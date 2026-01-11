@@ -428,6 +428,55 @@ class AnalyticsDatabaseInterface(DatabaseInterfaceBase):
         """Edits the views of a post by id"""
         self._update("views", views, "id", id)
 
+class CryptographyKeysDatabaseInterface(DatabaseInterfaceBase):
+    """Extends DatabaseInterfaceBase for accessing the cryptography keys database.
+    Columns:
+        username:
+            TEXT PRIMARY KEY
+            INSERT and READ ONLY
+        dm_public_key:
+            TEXT
+            INSERT and READ ONLY
+        dm_private_key:
+            TEXT
+            INSERT
+            READ if username matches client
+        analytics_public_key:
+            TEXT
+            INSERT and READ ONLY
+        analytics_private_key:
+            TEXT
+            INSERT
+            READ if username matches client
+    """
+
+    DATABASE_NAME = "CryptographyKeys"
+    TABLE_NAME = "CryptographyKeys"
+    COLUMNS = ["username","dm_public_key","dm_private_key","analytics_public_key","analytics_private_key"]
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def insert_keys(self, username: str, dm_public_key: str, dm_private_key: str, analytics_public_key: str, analytics_private_key: str) -> None:
+        """Adds new keys to the database for a specific username"""
+        self._insert(["username", "dm_public_key", "dm_private_key", "analytics_public_key", "analytics_private_key"], [username, dm_public_key, dm_private_key, analytics_public_key, analytics_private_key])
+        
+    def get_dm_public_key(self, username: str) -> str:
+        """Reads the dm public key for a specific username"""
+        return self._read_columns_condition(["dm_public_key"],"username",username)[0][0]
+    
+    def get_dm_private_key(self, username: str) -> str:
+        """Reads the dm private key for a specific username"""
+        return self._read_columns_condition(["dm_private_key"],"username",username)[0][0]
+    
+    def get_analytics_public_key(self, username: str) -> str:
+        """Reads the analytics public key for a specific username"""
+        return self._read_columns_condition(["analytics_public_key"],"username",username)[0][0]
+    
+    def get_analytics_private_key(self, username: str) -> str:
+        """Reads the analytics private key for a specific username"""
+        return self._read_columns_condition(["analytics_private_key"],"username",username)[0][0]
+
 
 
 
@@ -439,6 +488,7 @@ class DatabaseController:
         self.__connections_db : ConnectionsDatabaseInterface = ConnectionsDatabaseInterface()
         self.__messages_db : MessagesDatabaseInterface = MessagesDatabaseInterface()
         self.__analytics_db : AnalyticsDatabaseInterface = AnalyticsDatabaseInterface()
+        self.__cryptography_db : CryptographyKeysDatabaseInterface = CryptographyKeysDatabaseInterface()
 
 
 
@@ -570,6 +620,25 @@ class DatabaseController:
         """Updates the star score for a specific post id"""
         self.__analytics_db.update_star_score(post_id, star_score)
 
+    def add_encryption_keys(self, username: str, dm_public_key: str, dm_private_key: str, analytics_public_key: str, analytics_private_key: str) -> None:
+        """Adds keys to the database on signup"""
+        self.__cryptography_db.insert_keys(username, dm_public_key, dm_private_key, analytics_public_key, analytics_private_key)
+
+    def get_dm_public_key(self, username: str) -> str:
+        """Returns the public key for a user's direct messages"""
+        return self.__cryptography_db.get_dm_public_key(username)
+    
+    def get_dm_private_key(self, username: str) -> str:
+        """Returns the encrypted form of the private key to decrypt the user's direct messages"""
+        return self.__cryptography_db.get_dm_private_key(username)
+    
+    def get_analytics_public_key(self, username: str) -> str:
+        """Returns the public key for incrementing analytics on a user's post"""
+        return self.__cryptography_db.get_analytics_public_key(username)
+    
+    def get_analytics_private_key(self, username: str) -> str:
+        """Returns the encrypted form of the private key to decrypt the user's post analytics"""
+        return self.__cryptography_db.get_analytics_private_key(username)
 
     def close(self) -> None:
         """Safely closes all databases"""
@@ -579,3 +648,4 @@ class DatabaseController:
         self.__connections_db.close()
         self.__messages_db.close()
         self.__analytics_db.close()
+        self.__cryptography_db.close()

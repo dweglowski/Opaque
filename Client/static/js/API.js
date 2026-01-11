@@ -6,7 +6,7 @@ class SocketAPI {
 
     SERVER_IP = "localhost";
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.6"
+    PROTOCOL_VERSION = "1.5"
 
     #client_controller_callback;
     #cryptography_controller;
@@ -204,6 +204,10 @@ class SocketAPI {
                     var posts = json["data"];
                     this.#client_controller_callback.my_posts_results(posts);
                     break;
+                case "GetEncryptionKeys":
+                    var keys = json["data"];
+                    this.#client_controller_callback.recived_user_encryption_keys(keys["dm_public"], keys["dm_private"], keys["analytics_public"], keys["analytics_private"]);
+                    break;
                 }
             }
         else if (action == "subscribe"){
@@ -276,6 +280,35 @@ class SocketAPI {
 
         this.#send_data(JSON.stringify(request_json))
 
+    }
+
+    /** Requests encryption keys on login. */
+    request_encryption_keys(){
+
+        var request_json = {
+            "action":"command",
+            "command":"GetEncryptionKeys",
+            "csec":this.#client_secret,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+        
+    }
+
+    /** Set encryption keys on signup. */
+    set_encryption_keys(dm_public, dm_private, analytics_public, analytics_private){
+
+        var request_json = {
+            "action":"command",
+            "command":"SetEncryptionKeys",
+            "csec":this.#client_secret,
+            "dm_public":dm_public,
+            "dm_private":dm_private,
+            "analytics_public":analytics_public,
+            "analytics_private":analytics_private,
+        };
+
+        this.#send_data(JSON.stringify(request_json))   
     }
 
     /** Request profile info from the server. */

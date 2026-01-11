@@ -144,7 +144,7 @@ class WebsocketServerController:
 
     SERVER_IP = "localhost"
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.6"
+    PROTOCOL_VERSION = "1.5"
 
 
 
@@ -888,6 +888,88 @@ class WebsocketServer:
         self.__send_response(json.dumps(response_json))
 
 
+    def __handle_set_keys(self, json_data : typing.Dict) -> None:
+        """Logic to set encryption keys for a user on signup"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        dm_public_key : str = json_data["dm_public"]
+        dm_private_key : str = json_data["dm_private"]
+        analytics_public_key : str = json_data["analytics_public"]
+        analytics_private_key : str = json_data["analytics_private"]
+
+        self.__server_callback.set_keys(self.__uuid, dm_public_key, dm_private_key, analytics_public_key, analytics_private_key)
+
+        response_json = {
+            "action":"result",
+            "command":"SetEncryptionKeys",
+            "success":True,
+        }
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_get_keys(self, json_data : typing.Dict) -> None:
+        """Logic to get encryption keys for a user on login"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        keys: typing.Dict[str,str] = self.__server_callback.get_user_encryption_keys(self.__uuid)
+
+        response_json = {
+            "action":"result",
+            "command":"GetEncryptionKeys",
+            "success":True,
+            "data":keys,
+        }
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_get_dm_public_key(self, json_data : typing.Dict) -> None:
+        """Logic to get a user's DM public key"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        username : str = json_data["username"]
+
+        dm_public_key: str = self.__server_callback.get_dm_public_key(username)
+
+        response_json = {
+            "action":"result",
+            "command":"GetDmPublicKey",
+            "success":True,
+            "data":dm_public_key,
+        }
+        self.__send_response(json.dumps(response_json))
+
+    def __handle_get_analytics_public_key(self, json_data : typing.Dict) -> None:
+        """Logic to get a user's analytics public key"""
+
+        client_secret : str = json_data["csec"]
+        
+        if not self.__validate_session(client_secret):
+            return self.RESPONSE_SESSION_MISSMATCH_ERROR
+
+        username : str = json_data["username"]
+
+        analytics_public_key: str = self.__server_callback.get_analytics_public_key(username)
+
+        response_json = {
+            "action":"result",
+            "command":"GetAnalyticsPublicKey",
+            "success":True,
+            "data":analytics_public_key,
+        }
+        self.__send_response(json.dumps(response_json))
+
+
+
     def __handle_client_request(self, data : str) -> None:
         """Handles a single request from a client.
         Takes in data and uuid.
@@ -924,6 +1006,14 @@ class WebsocketServer:
                     case "Signup":
                         
                         self.__handle_signup(json_data)
+
+                    case "SetEncryptionKeys":
+
+                        self.__handle_set_keys(json_data)
+
+                    case "GetEncryptionKeys":
+
+                        self.__handle_get_keys(json_data)
 
                     case "UpdateProfilePicture":
                         
@@ -964,6 +1054,14 @@ class WebsocketServer:
                     case "GetMyPosts":
 
                         self.__handle_get_my_posts(json_data)
+
+                    case "GetDmPublicKey":
+
+                        self.__handle_get_dm_public_key(json_data)
+
+                    case "GetAnalyticsPublicKey":
+
+                        self.__handle_get_analytics_public_key(json_data)
 
             elif action == "analytics":
                 command : str = json_data["command"]

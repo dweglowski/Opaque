@@ -208,6 +208,10 @@ class SocketAPI {
                     var keys = json["data"];
                     this.#client_controller_callback.recived_user_encryption_keys(keys["dm_public"], keys["dm_private"], keys["analytics_public"], keys["analytics_private"]);
                     break;
+                case "GetDmPublicKey":
+                    var public_key = json["data"];
+                    this.#client_controller_callback.handle_recived_conversation_public_key(public_key);
+                    break;
                 }
             }
         else if (action == "subscribe"){
@@ -309,6 +313,20 @@ class SocketAPI {
         };
 
         this.#send_data(JSON.stringify(request_json))   
+    }
+
+    /** Request to public key for a conversation with another user */
+    get_conversation_public_key(username){
+
+        var request_json = {
+            "action":"command",
+            "command":"GetDmPublicKey",
+            "csec":this.#client_secret,
+            "username": username,
+        };
+
+        this.#send_data(JSON.stringify(request_json))
+
     }
 
     /** Request profile info from the server. */

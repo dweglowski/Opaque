@@ -15,6 +15,7 @@ class Client {
     #login_password = ""; // used to cache the password from login while awaiting the salt from server
 
     #open_conversation_username = ""; // the username of the currently open conversation
+    #open_conversation_public_key = ""; // the public key of the conversation currently open
     
     constructor(){
 
@@ -202,15 +203,42 @@ class Client {
     open_conversation(username){
         this.#open_conversation_username = username;
         this.#api.get_conversation_messages(username);
+
+        // request public key for e2ee
+        this.#open_conversation_public_key = "";
+        this.#api.get_conversation_public_key(username);
     }
-    handle_recived_message(message){
-        message["content"] = message["RecipientCopy"]; // TODO decrypt e2ee
+    handle_recived_conversation_public_key(public_key){
+        this.#open_conversation_public_key = public_key;
+    }
+
+    async handle_recived_message(message){
+        // select correct copy to decrypt, if owned, decrypt sender copy with otherwise decrypt recipient copy
+        var encrypted_content = "";
+        if (message["owned"] == true){
+            encrypted_content = message["SenderCopy"];
+        }
+        else{
+            encrypted_content = message["RecipientCopy"];
+        }
+
+        // decrypt message content with private key
+        var content = await this.#cryptography_controller.decrypt_direct_message(encrypted_content);
+
+        message["content"] = content;
         this.#ui.display_new_message(message);
     }
 
-    add_message(content){
-        var SenderCopy = content; // TODO encrypt e2ee
-        var RecipientCopy = content; // TODO encrypt e2ee
+    async add_message(content){
+        // wait until the client's public key has be fetched from the server
+        while (this.#open_conversation_public_key == ""){
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // encrypt message with e2ee, one copy for sender and one for recipient
+        var SenderCopy = await this.#cryptography_controller.encrypt_direct_message_sender_copy(content);
+        var RecipientCopy = await this.#cryptography_controller.encrypt_direct_message_recipient_copy(this.#open_conversation_public_key, content);
+
         this.#api.add_message(SenderCopy, RecipientCopy, this.#open_conversation_username);
     }
 

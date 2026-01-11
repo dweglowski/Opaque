@@ -299,9 +299,9 @@ class CryptographyController {
     }
 
     /** Encrypts a direct message using the recipient's public key (recipient copy of content) */
-    encrypt_direct_message_recipient_copy(recipient_public_key, data) {
+    async encrypt_direct_message_recipient_copy(recipient_public_key, data) {
         var public_key_bytes = Uint8Array.from(atob(recipient_public_key), c => c.charCodeAt(0));
-        var recipient_public_key = crypto.subtle.importKey(
+        var recipient_public_key = await crypto.subtle.importKey(
             "spki",
             public_key_bytes.buffer,
             {
@@ -312,7 +312,7 @@ class CryptographyController {
             ["encrypt"]
         );
 
-        return this.#encrypt_asymmetric(recipient_public_key, data);
+        return await this.#encrypt_asymmetric(recipient_public_key, data);
     }
 
     /** Decrypts a direct message using the client's private key */

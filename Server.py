@@ -181,6 +181,9 @@ class ServerController:
         self.__database.add_new_profile(username, display_name)
         self.__username_trie.add_string(username)
 
+        self.__friend_graph.add_user(username)
+        self.__following_graph.add_user(username)
+
         self.__set_username(username, uuid)
 
         return True, ""
@@ -239,8 +242,33 @@ class ServerController:
             "isFriend":isFriend,
             "isFollowed":isFollowed,
         }
+        
+        connections_info : typing.Dict[str, int | typing.List[str]] = self.get_profile_connections_info(username, uuid)
+        resp |= connections_info
 
         return True, resp
+    
+    def get_profile_connections_info(self, username : str, uuid: str) -> typing.Dict[str, int | typing.List[str]]:
+        """Returns infomation about how connected a user is.
+        Includes:
+            - number of friends
+            - number of followers
+            - mutual friends with the client
+            - degree of separation from the client
+        """
+        num_friends : int = len(self.__friend_graph.get_all_connected_two_ways(username))
+        num_followers : int = len(self.__following_graph.get_all_connected_to(username))
+        mutual_friends : typing.List[str] = self.__friend_graph.get_mutual_nodes(username, self.get_username(uuid))
+        degree_of_separation : int = self.__friend_graph.get_degrees_of_separation(username, self.get_username(uuid))
+
+        result : typing.Dict[str, int | typing.List[str]] = {
+            "num_friends": num_friends,
+            "num_followers": num_followers,
+            "mutual_friends": mutual_friends,
+            "degree_of_separation": degree_of_separation,
+        }
+
+        return result
 
     def user_search_suggestions(self, start_username : str) -> typing.List[str]:
         """Returns a list of the first N usernames which start with the string provided."""

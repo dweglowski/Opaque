@@ -339,6 +339,11 @@ class UI {
             
         }
 
+        document.getElementById("SearchResultFriendsCount").textContent = result["num_friends"];
+        document.getElementById("SearchResultFollowersCount").textContent = result["num_followers"];
+        document.getElementById("SearchResultDegreeOfSeparation").textContent = result["degree_of_separation"];
+        document.getElementById("SearchResultMutualFriends").innerHTML = result["mutual_friends"].join("<br>");
+
         this.#user_search_result_close_btn = document.getElementById("UserSearchResultClose");
         this.#user_search_result_close_btn.addEventListener("click", this.user_search_result_close.bind(this)); // bind used to preserve "this"
     }

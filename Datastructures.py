@@ -265,21 +265,48 @@ class Graph:
             connected_usernames.append(connected_username)
 
         return connected_usernames
+
+    def get_all_connected_to(self, username : str) -> typing.List[str]:
+        """Returns all usernames connected to a particular user, other direction"""
+        connected_usernames : typing.List[str] = []
+        other_username : str
+        for other_username in self.__nodes:
+            other_user : _GraphNode = self.__nodes[other_username]
+            if other_user.is_connected(username):
+                connected_usernames.append(other_username)
+
+        return connected_usernames
+
+    def get_all_connected_two_ways(self, username : str) -> typing.List[str]:
+        """Returns all usernames connected to a particular user both ways"""
+        user : _GraphNode = self.__nodes[username]
+
+        connected_usernames : typing.List[str] = []
+        connected_username : str
+        for connected_username in user.get_connections():
+            connected_usernames.append(connected_username)
+        for other_username in self.__nodes:
+            other_user : _GraphNode = self.__nodes[other_username]
+            if other_user.is_connected(username):
+                connected_usernames.append(other_username)
+
+        return connected_usernames
     
     def get_mutual_nodes(self, username1 : str, username2 : str) -> typing.List[str]:
         """Returns a list of usernames who are connected to both users provided (all mutual nodes)."""
         user1 : _GraphNode = self.__nodes[username1]
         user2 : _GraphNode = self.__nodes[username2]
 
-        connected_usernames1 : typing.List[str] = self.get_all_connected(username1)
-        connected_usernames2 : typing.List[str] = self.get_all_connected(username1)
+        connected_usernames1 : typing.List[str] = self.get_all_connected_two_ways(username1)
+        connected_usernames2 : typing.List[str] = self.get_all_connected_two_ways(username2)
 
         mutual_nodes : typing.List[str] = []
         connected_username : str
         for connected_username in connected_usernames1:
             if connected_username in connected_usernames2:
                 # in both so mutual connection
-                mutual_nodes.append(connected_username)
+                if connected_username != username1 and connected_username != username2:
+                    mutual_nodes.append(connected_username)
 
         return mutual_nodes
 
@@ -303,7 +330,7 @@ class Graph:
                 return depth
             
             connected_username : str
-            for connected_username in self.get_all_connected(username):
+            for connected_username in self.get_all_connected_two_ways(username):
                 # only add to queue if not already visited
                 if connected_username not in visited:
                     # max search depth of 4

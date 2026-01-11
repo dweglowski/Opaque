@@ -144,7 +144,7 @@ class WebsocketServerController:
 
     SERVER_IP = "localhost"
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.5"
+    PROTOCOL_VERSION = "1.6"
 
 
 

@@ -6,7 +6,7 @@ class SocketAPI {
 
     SERVER_IP = "localhost";
     SERVER_PORT = 1234
-    PROTOCOL_VERSION = "1.5"
+    PROTOCOL_VERSION = "1.6"
 
     #client_controller_callback;
     #cryptography_controller;

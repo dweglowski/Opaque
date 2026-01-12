@@ -3,54 +3,110 @@
 import typing
 
 class Queue:
-    """Custom implementation of a queue, FIFO datastructure"""
+    """Custom implementation of a queue, FIFO datastructure. Circular array based. If full, auto resizes."""
     def __init__(self) -> None:
-        self.__list = [] # temporary logic, to be replaced later
+        self.__capacity : int = 100
+        self.__array : typing.List[typing.Any] = [None] * self.__capacity
+        self.__front : int = 0
+        self.__rear : int = 0
 
     def __len__(self) -> int:
-        return len(self.__list)
+        return (self.__rear - self.__front) % self.__capacity
     
     def is_empty(self) -> bool:
         """Returns if queue has no items."""
-        return len(self) == 0
+        return self.__front == self.__rear
     
     def clear(self) -> None:
         """Clears the queue, removing all items."""
         while not self.is_empty():
             self.dequeue()
+        self.__front = 0
+        self.__rear = 0
+    
+    def __is_full(self) -> bool:
+        """Returns if the queue is full and needs resizing."""
+        return (self.__rear + 1) % self.__capacity == self.__front
+    
+    def __resize(self) -> None:
+        """Loops over every item in the queue and adds it to a new larger array."""
+        new_capacity : int = self.__capacity * 10
+        new_array : typing.List[typing.Any] = [None] * new_capacity
+
+        index : int = 0
+        while not self.is_empty():
+            new_array[index] = self.dequeue()
+            index += 1
+        
+        self.__array = new_array
+        self.__capacity = new_capacity
+        self.__front = 0
+        self.__rear = index
     
     def enqueue(self, item: typing.Any) -> None:
         """Adds a new item to the end of the queue."""
-        self.__list.append(item)
+        if self.__is_full():
+            self.__resize()
+        
+        self.__array[self.__rear] = item
+        self.__rear = (self.__rear + 1) % self.__capacity
 
     def dequeue(self) -> typing.Any:
         """Removes an item from the front of the queue and returns it."""
-        return self.__list.pop(0)
+        item : typing.Any = self.__array[self.__front]
+        self.__array[self.__front] = None
+        self.__front = (self.__front + 1) % self.__capacity
+        return item
     
 class Stack:
-    """Custom implementation of a stack, LIFO datastructure"""
+    """Custom implementation of a stack, LIFO datastructure. Implemented as an array, if full auto resizes."""
     def __init__(self) -> None:
-        self.__list = [] # temporary logic, to be replaced later
+        self.__capacity : int = 100
+        self.__array : typing.List[typing.Any] = [None] * self.__capacity
+        self.__top : int = 0
 
     def __len__(self) -> int:
-        return len(self.__list)
+        return self.__top
     
     def is_empty(self) -> bool:
         """Returns if stack has no items."""
-        return len(self) == 0
+        return self.__top == 0
     
     def clear(self) -> None:
         """Clears the stack, removing all items."""
         while not self.is_empty():
             self.pop()
+
+    def __is_full(self) -> bool:
+        """Returns if the stack is full and needs resizing."""
+        return self.__top == self.__capacity
+    
+    def __resize(self) -> None:
+        """Loops over every item in the stack and adds it to a new larger array."""
+        new_capacity : int = self.__capacity * 10
+        new_array : typing.List[typing.Any] = [None] * new_capacity
+
+        index : int
+        for index in range(self.__top):
+            new_array[index] = self.__array[index]
+        
+        self.__array = new_array
+        self.__capacity = new_capacity
     
     def push(self, item: typing.Any) -> None:
         """Adds a new item to the top of the stack."""
-        self.__list.append(item)
+        if self.__is_full():
+            self.__resize()
+        
+        self.__array[self.__top] = item
+        self.__top += 1
 
     def pop(self) -> typing.Any:
         """Removes an item from the top of the stack and returns it."""
-        return self.__list.pop()
+        self.__top -= 1
+        item : typing.Any = self.__array[self.__top]
+        self.__array[self.__top] = None
+        return item
     
 
 
@@ -344,5 +400,43 @@ class Graph:
                     
 
 
-        
+class HashMap:
+    """Custom implementation of a hashmap using a fixed array size and md5 for hashing."""
 
+    def __init__(self) -> None:
+        self.__capacity : int = 1000
+        self.__array : typing.List[typing.Tuple[typing.Any, typing.Any]] = [None] * self.__capacity
+    
+    def __hash_key(self, key: typing.Any) -> int:
+        """Converts a key into an address in the array"""
+        return hash(key) % self.__capacity
+    
+    def add(self, key: typing.Any, value: typing.Any) -> None:
+        """Adds a key value pair to the hashmap."""
+        address : int = self.__hash_key(key)
+
+        # if the address is taken, find the next available address
+        while self.__array[address] is not None:
+            existing_key, existing_value = self.__array[address]
+            if existing_key == key:
+                # key already exists, update existing value
+                self.__array[address] = (key, value)
+                return
+            address = (address + 1) % self.__capacity
+
+        self.__array[address] = (key, value)
+
+    def get(self, key: typing.Any) -> typing.Any:
+        """Retirieves a value from the hashmap using the key."""
+        # find the address the key is stored at
+        address : int = self.__hash_key(key)
+
+        # keep checking addresses incase the key was moved due to a collision
+        while self.__array[address] is not None:
+            existing_key, existing_value = self.__array[address]
+            if existing_key == key:
+                # found the key, return the value
+                return existing_value
+            address = (address + 1) % self.__capacity
+
+        return None

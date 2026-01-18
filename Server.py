@@ -208,7 +208,7 @@ class ServerController:
     def profile_get_profile_pictureid(self, username : str) -> str:
         """Returns the uuid for a user's profile picture."""
         pictureid : str = self.__database.profile_get_pictureid(username)
-        return re.sub("[^0-9]*","", pictureid) # sanitize first
+        return re.sub("[^0-9A-Za-z\-]*","", pictureid) # sanitize first
 
     def get_profile_info(self, uuid:str) -> typing.Dict[str, str]:
         username : str = self.get_username(uuid)
@@ -292,20 +292,11 @@ class ServerController:
         client_username : str = self.get_username(uuid)
 
         users_to : str = ""
-        if post["to"] == "@all" or client_username in post["to"].split("@"):
+        if post["to"] == "@all" or client_username in post["to"].lower().replace(" ","").replace(",","").split("@"):
             return True
 
         return False
-    def __validate_post_is_for_client(self, post : TYPE_POST, uuid : str) -> None:
-
-        client_username : str = self.get_username(uuid)
-
-        users_to : str = ""
-        if post["to"] == "@all" or client_username in post["to"].split("@"):
-            return True
-
-        return False
-
+    
     def __validate_message_is_for_client(self, message : TYPE_POST, uuid : str) -> None:
 
         client_username : str = self.get_username(uuid)

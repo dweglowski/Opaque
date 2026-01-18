@@ -33,9 +33,6 @@ class Client {
 
     }
 
-    start_signin_process(){
-        this.#ui.start_signin_process()
-    }
     
     /** Called when user clicks login, recives the correct salt from the server */
     login_start(username, password){
@@ -456,20 +453,9 @@ class Client {
         this.#initialise_post_analytics(post_id);
     }
 
-    
-    start(){
-        this.start_signin_process();
-    }
-
-    
-
-
-
 
 }
 
 
 
 var main = new Client();
-
-main.start();

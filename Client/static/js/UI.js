@@ -4,64 +4,9 @@ class UI {
 
     #client_controller_callback;
 
-    #MainContainer;
+    #state = "greeting";
 
-    #login_container;
-    #login_username_field;
-    #login_password_field;
-    #login_send;
-    #login_UserDoesntExist_message;
-    #login_InvalidPassword_message;
-    #login_switch_to_signup;
-
-    #signup_container;
-    #signup_username_field;
-    #signup_displayname_field;
-    #signup_password_field;
-    #signup_send;
-    #signup_switch_to_login;
-    #signup_NotUniqueUsername_message;
-    #signup_profile_picture_upload;
-    #signup_profile_picture_canvas;
-
-    #profile_display_name;
-
-    #user_search_open_btn;
-    #user_search_container;
-    #user_search_username;
-    #user_search_username_event_listener_started = false;
-    #user_search_suggestions_container;
-    #user_search_send_btn;
-    #user_search_result_container;
-    #user_search_result_close_btn;
-    #user_search_username_viewed;
-
-
-    #messages_tab_open_btn;
-    #messages_tab_container;
-    #messages_tab_close_btn;
-    #messages_tab_new_conversation_btn_event_listener_started = false;
-    #messages_tab_send_btn_event_listener_started = false;
-
-    #my_posts_tab_open_btn;
-    #my_posts_tab_container;
-    #my_posts_tab_close_btn;
-
-
-    #filter_dropdown;
-
-    #posts_container;
-
-    #new_post_field;
-    #add_post_btn;
-
-    #new_post_content_container;
-    #new_post_content_container_close_btn;
-    #new_post_add_content_btn;
-    #new_post_images_container;
-    #new_post_image_template;
-    #new_post_image_upload;
-
+    #user_search_username_viewed = "";
 
     #analytics_tracker_seen_yet = {}; // stores whether each post id has been seen yet to only add a single view per session
     #analytics_tracker_start_times = {}; // stores when the user started viewing each post id to calculate time spent viewing
@@ -69,63 +14,74 @@ class UI {
 
     constructor(client_controller_callback){
         this.#client_controller_callback = client_controller_callback;
+
+        document.getElementById("LoginButton").addEventListener("click", this.start_login_process.bind(this));
+        document.getElementById("SignupButton").addEventListener("click", this.start_signup_process.bind(this));
+        
     }
 
-    start_signin_process(){
-        this.#MainContainer = document.getElementById("MainContainer");
-        this.#MainContainer.style.filter="blur(5px)";
+    start_login_process(){
+        this.start_signin_process();
+        document.getElementById("SwitchToLogin").click();
+    }
+
+    start_signup_process(){
+        this.start_signin_process();
+        document.getElementById("SwitchToSignup").click();
+    }
+
+    start_signin_process(){        
+        document.getElementById("GreetingContainer").classList.add("Hidden");
+
+        var login_container = document.getElementById("LoginPopup");
+        var login_username_field = document.getElementById("LoginUsername");
+        var login_password_field = document.getElementById("LoginPassword");
+        var login_send = document.getElementById("LoginSend");
+        var login_UserDoesntExist_message = document.getElementById("UserDoesntExist");
+        var login_InvalidPassword_message = document.getElementById("InvalidPassword");
         
-        this.#login_container = document.getElementById("LoginPopup");
-        this.#login_username_field = document.getElementById("LoginUsername");
-        this.#login_password_field = document.getElementById("LoginPassword");
-        this.#login_send = document.getElementById("LoginSend");
-        this.#login_UserDoesntExist_message = document.getElementById("UserDoesntExist");
-        this.#login_InvalidPassword_message = document.getElementById("InvalidPassword");
-        
-        this.#signup_container = document.getElementById("SignupPopup");
-        this.#signup_username_field = document.getElementById("SignupUsername");
-        this.#signup_displayname_field = document.getElementById("SignupDisplayname");
-        this.#signup_password_field = document.getElementById("SignupPassword");
-        this.#signup_send = document.getElementById("SignupSend");
-        this.#signup_NotUniqueUsername_message = document.getElementById("NotUniqueUsername");
+        var signup_container = document.getElementById("SignupPopup");
+        var signup_username_field = document.getElementById("SignupUsername");
+        var signup_displayname_field = document.getElementById("SignupDisplayname");
+        var signup_password_field = document.getElementById("SignupPassword");
+        var signup_send = document.getElementById("SignupSend");
+        var signup_NotUniqueUsername_message = document.getElementById("NotUniqueUsername");
 
 
 
-        this.#login_switch_to_signup = document.getElementById("SwitchToSignup");
-        this.#signup_switch_to_login = document.getElementById("SwitchToLogin");
-        this.#login_switch_to_signup.addEventListener("click", (() => {this.#login_container.style.display="none";this.#signup_container.style.display="block"}));
-        this.#signup_switch_to_login.addEventListener("click", (() => {this.#login_container.style.display="block";this.#signup_container.style.display="none"}));
+        var login_switch_to_signup = document.getElementById("SwitchToSignup");
+        var signup_switch_to_login = document.getElementById("SwitchToLogin");
+        login_switch_to_signup.addEventListener("click", (() => {login_container.classList.remove("PopupVisible"); login_container.classList.add("PopupHidden"); signup_container.classList.remove("PopupHidden"); signup_container.classList.add("PopupVisible");}));
+        signup_switch_to_login.addEventListener("click", (() => {login_container.classList.remove("PopupHidden"); login_container.classList.add("PopupVisible"); signup_container.classList.remove("PopupVisible"); signup_container.classList.add("PopupHidden");}));
         
-        this.#login_send.addEventListener("click", this.login.bind(this)); // bind used to preserve "this"
-        this.#signup_send.addEventListener("click", this.signup.bind(this)); // bind used to preserve "this"
+        login_send.addEventListener("click", this.login.bind(this)); // bind used to preserve "this"
+        signup_send.addEventListener("click", this.signup.bind(this)); // bind used to preserve "this"
         
         
-        this.#signup_profile_picture_upload = document.getElementById("SignupProfilePictureUpload");
-        this.#signup_profile_picture_upload.addEventListener("change", this.signup_profile_picture_added.bind(this));
+        var signup_profile_picture_upload = document.getElementById("SignupProfilePictureUpload");
+        signup_profile_picture_upload.addEventListener("change", this.signup_profile_picture_added.bind(this));
+
         // add default image to profile picture
         this.#add_image_to_canvas_fixed_size("SignupProfilePicture", "/uploads/profile_pictures/0.png", 200, 200);
     }
-
     login(){
-        this.#login_UserDoesntExist_message.style.display="none";
-        this.#login_InvalidPassword_message.style.display="none";
+        document.getElementById("UserDoesntExist").style.display="none";
+        document.getElementById("InvalidPassword").style.display="none";
 
-        
-        var username = this.#login_username_field.value;
-        var password = this.#login_password_field.value;
+        var username = document.getElementById("LoginUsername").value;
+        var password = document.getElementById("LoginPassword").value;
         
         this.#client_controller_callback.login_start(username,password);
     }
     
     signup(){
-        var username = this.#signup_username_field.value;
-        var display_name = this.#signup_displayname_field.value;
-        var password = this.#signup_password_field.value;
+        var username = document.getElementById("SignupUsername").value;
+        var display_name = document.getElementById("SignupDisplayname").value;
+        var password = document.getElementById("SignupPassword").value;
         
         this.#client_controller_callback.signup(username, display_name, password);
 
     }
-
 
     /** Adds a picture */
     #add_image_to_canvas_fixed_size(canvas_name, img_data, width, height){
@@ -164,150 +120,222 @@ class UI {
     }
 
 
-    
     login_failed(reason){
-        this.#login_UserDoesntExist_message.style.display="none";
-        this.#login_InvalidPassword_message.style.display="none";
+        document.getElementById("UserDoesntExist").style.display="none";
+        document.getElementById("InvalidPassword").style.display="none";
         if (reason == "DoesntExist"){
-            this.#login_UserDoesntExist_message.style.display="block";
+            document.getElementById("UserDoesntExist").style.display="block";
         }
         else if (reason == "Password"){
-            this.#login_InvalidPassword_message.style.display="block";
+            document.getElementById("InvalidPassword").style.display="block";
         }
     }
     
     login_success(){
-        this.#login_container.style.display = "none";
-        this.#MainContainer.style.filter="";
+        document.getElementById("LoginPopup").classList.remove("PopupVisible");
+        document.getElementById("LoginPopup").classList.add("PopupHidden");
     }
     
     signup_failed(reason){
         if (reason == "NotUnique"){
-            this.#signup_NotUniqueUsername_message.style.display="block";
+            document.getElementById("NotUniqueUsername").style.display="block";
         }
     }
     
     signup_success(){
-        this.#signup_container.style.display = "none";
-        this.#MainContainer.style.filter="";
+        document.getElementById("SignupPopup").classList.remove("PopupVisible");
+        document.getElementById("SignupPopup").classList.add("PopupHidden");
     }
+
+    #logout(){
+        location.reload();
+    }
+
+
 
     show_main_page(){
         
-        this.#new_post_field = document.getElementById("NewPost");
+        this.#state="main";
+        document.getElementById("MainContainer").classList.remove("Hidden");
 
-        this.#add_post_btn = document.getElementById("SendPost");
-        this.#add_post_btn.addEventListener("click", this.#add_post.bind(this)); // bind used to preserve "this"
-        
-        
-        this.#posts_container = document.getElementById("PostsContainer");
-        
-        
-        this.#new_post_content_container = document.getElementById("NewPostContentPopup");
+        var new_post_field = document.getElementById("NewPost");
 
-        this.#new_post_content_container = document.getElementById("NewPostContentPopup");
-        this.#new_post_image_template = document.getElementById("NewPostImageTemplateCanvas");
-        this.#new_post_images_container = document.getElementById("NewPostImagesContainer");
+        var add_post_btn = document.getElementById("SendPost");
+        add_post_btn.addEventListener("click", this.#add_post.bind(this)); // bind used to preserve "this"
+        document.getElementById("NewPostCancel").addEventListener("click", this.show_posts_homepage.bind(this));
+        document.getElementById("PostVisibilityPrivate").addEventListener("change", this.new_post_toggle_visibility.bind(this));
+        document.getElementById("PostVisibilityPublic").addEventListener("change", this.new_post_toggle_visibility.bind(this));
         
-        this.#new_post_add_content_btn = document.getElementById("NewPostAddContent");
-        this.#new_post_add_content_btn.addEventListener("click", this.#open_content_select_menu.bind(this));
-        this.#new_post_content_container_close_btn = document.getElementById("NewPostContentClose");
-        this.#new_post_content_container_close_btn.addEventListener("click", this.#close_content_select_menu.bind(this));
         
-        this.#new_post_image_upload = document.getElementById("NewPostImageUpload");
-        this.#new_post_image_upload.addEventListener("change", this.new_post_picture_added.bind(this));
+        var posts_container = document.getElementById("PostsContainer");
         
+        document.getElementById("NewPostButton").addEventListener("click", this.show_new_post_popup.bind(this));
+        
+        var new_post_content_container = document.getElementById("NewPostContentPopup");
 
+        var new_post_content_container = document.getElementById("NewPostContentPopup");
+        var new_post_image_template = document.getElementById("NewPostImageTemplateCanvas");
+        var new_post_images_container = document.getElementById("NewPostImagesContainer");
         
-        this.#user_search_container = document.getElementById("UserSearchPopup");
-        this.#user_search_result_container = document.getElementById("UserSearchResultPopup");
-        this.#user_search_open_btn = document.getElementById("UserSearchOpen");
-        this.#user_search_open_btn.addEventListener("click", this.#open_user_search.bind(this)); // bind used to preserve "this"
-        this.#user_search_send_btn = document.getElementById("UserSearchSend");
-        this.#user_search_send_btn.addEventListener("click", this.start_user_search.bind(this));
+        
+        var new_post_image_upload = document.getElementById("NewPostImageUpload");
+        new_post_image_upload.addEventListener("change", this.new_post_picture_added.bind(this));
+        
+        var filter_dropdown = document.getElementById("FilterDropdown");
+        filter_dropdown.addEventListener("change", this.#start_filter.bind(this));
+
+
+        this.#init_user_search();
+        this.#init_messages_tab();
+        this.#init_my_posts_tab();
+        this.#init_navbar();
+        
+    }
+
+    #init_navbar(){
+        document.getElementById("NavbarHome").addEventListener("click", this.show_posts_homepage.bind(this));
+        document.getElementById("NavbarUserSearch").addEventListener("click", this.show_user_search.bind(this));
+        document.getElementById("NavbarMessages").addEventListener("click", this.show_messages_tab.bind(this));
+        document.getElementById("NavbarMyPosts").addEventListener("click", this.show_my_posts_tab.bind(this));
+    }
+
+    #init_user_search(){
+        var user_search_container = document.getElementById("UserSearchPopup");
+        var user_search_result_container = document.getElementById("UserSearchResultPopup");
         
         document.getElementById("UserSearchAddFriend").addEventListener("click", this.user_search_add_friend.bind(this));
         document.getElementById("UserSearchRemoveFriend").addEventListener("click", this.user_search_remove_friend.bind(this));
         document.getElementById("UserSearchFollow").addEventListener("click", this.user_search_follow.bind(this));
         document.getElementById("UserSearchUnfollow").addEventListener("click", this.user_search_unfollow.bind(this));
-        
-        this.#filter_dropdown = document.getElementById("FilterDropdown");
-        this.#filter_dropdown.addEventListener("change", this.#start_filter.bind(this));
-        
+    }
+    #init_messages_tab(){
+        var messages_tab_container = document.getElementById("MessagesTab");
 
-
-
-
-        this.#messages_tab_container = document.getElementById("MessagesTab");
-
-        this.#messages_tab_open_btn = document.getElementById("MessagesTabOpen");
-        this.#messages_tab_open_btn.addEventListener("click", this.#open_messages_tab.bind(this));
-        this.#messages_tab_close_btn = document.getElementById("MessagesTabClose");
-        this.#messages_tab_close_btn.addEventListener("click", this.#close_messages_tab.bind(this));
-
-
-
-        this.#my_posts_tab_container = document.getElementById("MyPostsTab");
-
-        this.#my_posts_tab_open_btn = document.getElementById("MyPostsTabOpen");
-        this.#my_posts_tab_open_btn.addEventListener("click", this.#open_my_posts_tab.bind(this));
-        this.#my_posts_tab_close_btn = document.getElementById("MyPostsTabClose");
-        this.#my_posts_tab_close_btn.addEventListener("click", this.#close_my_posts_tab.bind(this));
+        var messages_tab_close_btn = document.getElementById("MessagesTabClose");
+        messages_tab_close_btn.addEventListener("click", this.#close_messages_tab.bind(this));
+    }    
+    #init_my_posts_tab(){
+        var my_posts_tab_container = document.getElementById("MyPostsTab");
         
     }
 
+    show_posts_homepage(){
+        document.getElementById("MainContentArea").classList.remove("Hidden");
+        document.getElementById("UserSearchContentArea").classList.add("Hidden");
+        document.getElementById("NewPostContentArea").classList.add("Hidden");
+        document.getElementById("MessagesContentArea").classList.add("Hidden");
+        document.getElementById("MyPostsTab").classList.add("Hidden");
+    }
+    show_user_search(){
+        document.getElementById("MainContentArea").classList.add("Hidden");
+        document.getElementById("UserSearchContentArea").classList.remove("Hidden");
+        document.getElementById("NewPostContentArea").classList.add("Hidden");
+        document.getElementById("MessagesContentArea").classList.add("Hidden");
+        document.getElementById("MyPostsTab").classList.add("Hidden");
+        
+        this.#open_user_search();
+    }
+    show_new_post_popup(){
+        document.getElementById("NewPostContentArea").classList.remove("Hidden");
+        document.getElementById("MainContentArea").classList.add("Hidden");
+        document.getElementById("UserSearchContentArea").classList.add("Hidden");
+        document.getElementById("MessagesContentArea").classList.add("Hidden");
+        document.getElementById("MyPostsTab").classList.add("Hidden");
+    }
+    show_messages_tab(){
+        document.getElementById("MainContentArea").classList.add("Hidden");
+        document.getElementById("UserSearchContentArea").classList.add("Hidden");
+        document.getElementById("NewPostContentArea").classList.add("Hidden");
+        document.getElementById("MessagesContentArea").classList.remove("Hidden");
+        document.getElementById("MyPostsTab").classList.add("Hidden");
+        this.#open_messages_tab();
+    }
+    show_my_posts_tab(){
+        document.getElementById("MainContentArea").classList.add("Hidden");
+        document.getElementById("UserSearchContentArea").classList.add("Hidden");
+        document.getElementById("NewPostContentArea").classList.add("Hidden");
+        document.getElementById("MessagesContentArea").classList.add("Hidden");
+        document.getElementById("MyPostsTab").classList.remove("Hidden");
+
+        this.#open_my_posts_tab();
+    }
+
+    
+
     display_username(username, displayname){
-        this.#profile_display_name = document.getElementById("DisplayName");
-        this.#profile_display_name.textContent=displayname;
-        this.#profile_display_name.addEventListener("click", this.#user_search.bind(this, username));
+        var profile_display_name = document.getElementById("DisplayName");
+        profile_display_name.textContent=displayname;
+        document.getElementById("ProfileIconTopRight").addEventListener("click", this.#toggle_ProfileIconTopRight_dropdown);
+        document.getElementById("MyProfileButton").addEventListener("click", this.#user_search.bind(this, username))
+        document.getElementById("MyProfileButton").addEventListener("click", this.#toggle_ProfileIconTopRight_dropdown)
+        document.getElementById("LogoutButton").addEventListener("click", this.#logout.bind(this))
+    }
+
+    #toggle_ProfileIconTopRight_dropdown(){
+        var dropdown = document.getElementById("ProfileIconTopRightDropdownMenu");
+        if (dropdown.classList.contains("Hidden")){
+            dropdown.classList.remove("Hidden");
+        }
+        else {
+            dropdown.classList.add("Hidden");
+        }
     }
 
     display_profile_picture_icon(pictureid){
         this.#add_image_to_canvas_fixed_size("MyProfilePicture", "/uploads/profile_pictures/"+pictureid+".png", 50, 50);
     }
-    
-    
+
     #open_user_search(){
-        this.#user_search_container.style.display="block";
-        this.#MainContainer.style.filter="blur(5px)";
+        document.getElementById("UserSearchContainer").classList.remove("Hidden");
+        document.getElementById("UserSearchResultContainer").classList.add("Hidden");
 
-        this.#user_search_username = document.getElementById("SearchUsername");
-        this.#user_search_suggestions_container = document.getElementById("UserSearchSuggestionsResult");
+        var user_search_username = document.getElementById("SearchUsername");
+        var user_search_suggestions_container = document.getElementById("UserSearchSuggestionsResult");
 
-        if (!this.#user_search_username_event_listener_started){
-            this.#user_search_username_event_listener_started = true;
-            this.#user_search_username.addEventListener("input", this.request_username_suggestions.bind(this));
+        if (user_search_username.dataset.eventListenerStarted != "true"){
+            // Only add event listener once
+            user_search_username.dataset.eventListenerStarted = "true";
+            user_search_username.addEventListener("input", this.request_username_suggestions.bind(this));
         }
+        this.request_username_suggestions();
     }
 
+
     request_username_suggestions(){
-        var username = this.#user_search_username.value;
+        var username = document.getElementById("SearchUsername").value;
         this.#client_controller_callback.user_search_suggestions(username);
     }
 
     username_suggestions_results(results){
-        this.#user_search_suggestions_container.innerHTML = "";
+        document.getElementById("UserSearchSuggestionsResult").innerHTML = "";
         results.forEach(user => {
             var p = document.createElement('p');
             p.textContent = user;
-            this.#user_search_suggestions_container.appendChild(p);
+            p.className = "UserSearchSuggestion";
+            let username = user;
+            p.addEventListener("click", (() => {
+                document.getElementById("SearchUsername").value = username;
+                this.start_user_search();
+            }));
+            document.getElementById("UserSearchSuggestionsResult").appendChild(p);
         });
     }
-    
-    
+
     #user_search(username){
         this.#client_controller_callback.user_search(username);
     }
     
     start_user_search(){
-        var username = this.#user_search_username.value;
+        var username = document.getElementById("SearchUsername").value;
         this.#user_search(username);
     }
-    
+
     user_search_result(result){
-        
-        this.#user_search_container.style.display = "none";
-        this.#user_search_result_container.style.display = "block";
+
+        this.show_user_search();
+
+        document.getElementById("UserSearchContainer").classList.add("Hidden");
+        document.getElementById("UserSearchResultContainer").classList.remove("Hidden");
         
         document.getElementById("SearchResultUsername").textContent = result["username"];
         document.getElementById("SearchResultDisplayname").textContent = result["displayname"];
@@ -344,14 +372,15 @@ class UI {
         document.getElementById("SearchResultDegreeOfSeparation").textContent = result["degree_of_separation"];
         document.getElementById("SearchResultMutualFriends").innerHTML = result["mutual_friends"].join("<br>");
 
-        this.#user_search_result_close_btn = document.getElementById("UserSearchResultClose");
-        this.#user_search_result_close_btn.addEventListener("click", this.user_search_result_close.bind(this)); // bind used to preserve "this"
+        var user_search_result_close_btn = document.getElementById("UserSearchResultClose");
+        user_search_result_close_btn.addEventListener("click", this.user_search_result_close.bind(this)); // bind used to preserve "this"
     }
-    
+
     user_search_result_close(){
-        this.#user_search_result_container.style.display="none";
-        this.#MainContainer.style.filter="";
+        document.getElementById("UserSearchContainer").classList.remove("Hidden");
+        document.getElementById("UserSearchResultContainer").classList.add("Hidden");
     }
+
 
     /** Called when friend button is pressed, uses the stored username of profile viewed to add a connection */
     user_search_add_friend(){
@@ -386,20 +415,11 @@ class UI {
         document.getElementById("UserSearchUnfollow").style.display = "none";
     }
 
-    #open_content_select_menu(){
-        this.#new_post_content_container.style.display="block";
-    }
-    
-    #close_content_select_menu(){
-        this.#new_post_content_container.style.display="none";
-        
-    }
-
     #start_filter(){
-        var filter_type = this.#filter_dropdown.value;
+        var filter_type = document.getElementById("FilterDropdown").value;
 
         // clear all existing posts
-        this.#posts_container.innerHTML = "";
+        document.getElementById("PostsContainer").innerHTML = "";
 
         this.#client_controller_callback.request_filtered_posts(filter_type);
     }
@@ -439,7 +459,7 @@ class UI {
         const _this = this;
         reader.onload = function(){
             var img_data = reader.result;
-            _this.#add_new_canvas_with_image(_this.#new_post_image_template, img_data, 1000, 1000);
+            _this.#add_new_canvas_with_image(document.getElementById("NewPostImageTemplateCanvas"), img_data, 1000, 1000);
         };
         reader.readAsDataURL(file);
     }
@@ -463,7 +483,7 @@ class UI {
     async upload_all_post_pictures(){
         var uuids = [];
         
-        var image_canvases = this.#new_post_images_container.children;
+        var image_canvases = document.getElementById("NewPostImagesContainer").children;
 
         // iterate over every image canvas with image except for the first one (which is the template)
         for (var i = 1; i < image_canvases.length; i++) {
@@ -488,13 +508,16 @@ class UI {
         var post_id = post["id"];
         this.#display_post(user_from, user_from_display_name, users_to, content, post_id);
 
-        if (this.#filter_dropdown.value == "best" || this.#filter_dropdown.value == "new"){
+        var filter_dropdown = document.getElementById("FilterDropdown");
+        var posts_container = document.getElementById("PostsContainer");
+
+        if (filter_dropdown.value == "best" || filter_dropdown.value == "new"){
             // scroll top
-            this.#posts_container.scrollTop = 0;
+            posts_container.scrollTop = 0;
         }
         else{
             // scroll bottom
-            this.#posts_container.scrollTop = this.#posts_container.scrollHeight;
+            posts_container.scrollTop = posts_container.scrollHeight;
         }
     
     }
@@ -502,7 +525,8 @@ class UI {
     #display_post(from, from_display_name, to, content, post_id){
         var message_container = document.createElement("div");
         message_container.className = "post";
-        this.#posts_container.appendChild(message_container);
+        var posts_container = document.getElementById("PostsContainer");
+        posts_container.appendChild(message_container);
 
         var from_text = document.createElement("a");
         from_text.href="#profile";
@@ -570,18 +594,6 @@ class UI {
             }).bind(this));
             reactions_container.appendChild(reaction_button);
         }
-        /*
-        
-        // decrypted_post["Likes"] = 0;
-        // decrypted_post["Hearts"] = 0;
-        // decrypted_post["Laughs"] = 0;
-        // decrypted_post["Surprises"] = 0;
-        // decrypted_post["Sads"] = 0;
-        // decrypted_post["Angrys"] = 0;
-        // decrypted_post["Fire"] = 0;
-        // decrypted_post["Computers"] = 0;
-        */
-
         // analytics tracker, tracks when post is in view
         var analytics_tracker = document.createElement("div");
         analytics_tracker.className = "post_analytics_tracker";
@@ -611,37 +623,52 @@ class UI {
         observer.observe(analytics_tracker);
 
     }
-    
+
+
+    new_post_toggle_visibility(){
+        var private_radio = document.getElementById("PostVisibilityPrivate");
+        var user_selection = document.getElementById("NewPostUserSelection");
+        if (private_radio.checked){
+            user_selection.classList.remove("Hidden");
+        }
+        else {
+            user_selection.classList.add("Hidden");
+        }
+    }
+
 
     #add_post(){
 
-        var to = "@all"; // change to user input when ui refreshed
-        var content = this.#new_post_field.value;
-        this.#new_post_field.value="";
+        var to = "@all";
+        if (document.getElementById("PostVisibilityPrivate").checked){
+            to = document.getElementById("NewPostAllowedUsers").value;
+        }
+        
+        var content = document.getElementById("NewPostContent").value;
+        document.getElementById("NewPostContent").value="";
 
         this.#client_controller_callback.add_post(content, to);
+
+        this.show_posts_homepage();
     }
 
 
     #open_messages_tab(){
-        this.#messages_tab_container.style.display="block";
-        this.#MainContainer.style.filter="blur(5px)";
-
-        if (!this.#messages_tab_new_conversation_btn_event_listener_started){
+        
+        if (document.getElementById("MessagesAddNew").dataset.eventListenerStarted != "true"){
+            document.getElementById("MessagesAddNew").dataset.eventListenerStarted = "true";
             document.getElementById("MessagesAddNew").addEventListener("click", this.start_new_conversation.bind(this));
-            this.#messages_tab_new_conversation_btn_event_listener_started = true;
         }
-        if (!this.#messages_tab_send_btn_event_listener_started){
+        if (document.getElementById("ChatSendMessage").dataset.eventListenerStarted != "true"){
+            document.getElementById("ChatSendMessage").dataset.eventListenerStarted = "true";
             document.getElementById("ChatSendMessage").addEventListener("click", this.add_message.bind(this));
-            this.#messages_tab_send_btn_event_listener_started = true;
         }
 
         this.#client_controller_callback.get_conversations();
 
     }
     #close_messages_tab(){
-        this.#messages_tab_container.style.display="none";
-        this.#MainContainer.style.filter="";
+        this.show_posts_homepage();
     }
 
     display_conversations(conversations){
@@ -652,21 +679,27 @@ class UI {
             var a = document.createElement('a');
             a.textContent = username;
             a.href="#messages/"+username;
+            let conversation_open_link = a;
             a.addEventListener("click", (() => {
                 this.open_conversation(username);
+                for (let link of conversations_container.children){
+                    link.classList.remove("active");
+                }
+                conversation_open_link.classList.add("active");
             }));
             conversations_container.appendChild(a);
         });
     }
 
     start_new_conversation(){
-        var username = document.getElementById("NewConversationUsername").value;
+        var username = document.getElementById("NewConversationUsername").value.toLowerCase();
         this.open_conversation(username);
     }
 
     open_conversation(username){
         this.#client_controller_callback.open_conversation(username);
         document.getElementById("ChatMessagesContainer").innerHTML = "";
+        document.getElementById("ChatTitle").textContent = "Chat with " + username;
     }
     display_new_message(message){
         var chat_container = document.getElementById("ChatMessagesContainer");
@@ -724,15 +757,8 @@ class UI {
     }
 
     #open_my_posts_tab(){
-        this.#my_posts_tab_container.style.display="block";
-        this.#MainContainer.style.filter="blur(5px)";
         this.#client_controller_callback.get_my_posts();
     }
-    #close_my_posts_tab(){
-        this.#my_posts_tab_container.style.display="none";
-        this.#MainContainer.style.filter="";
-    }
-
 
     display_my_posts(posts){
         var my_posts_container = document.getElementById("MyPostsContainer");
@@ -785,53 +811,62 @@ class UI {
             views_text.textContent = `Views: ${post["Views"]}`;
             analytics_container.appendChild(views_text);
 
+            var reactions_row = document.createElement("div");
+            reactions_row.className = "post_analytics_reactions_row";
+            analytics_container.appendChild(reactions_row);
+
             var reaction_emojis = ["👍","❤️","😂","😮","😢","😡","🔥","💻"];
 
             var likes_text = document.createElement("p");
             likes_text.textContent = `${reaction_emojis[0]} ${post["Likes"]}`;
-            analytics_container.appendChild(likes_text);
+            reactions_row.appendChild(likes_text);
 
             var hearts_text = document.createElement("p");
             hearts_text.textContent = `${reaction_emojis[1]} ${post["Hearts"]}`;
-            analytics_container.appendChild(hearts_text);
+            reactions_row.appendChild(hearts_text);
             
             var laughs_text = document.createElement("p");
             laughs_text.textContent = `${reaction_emojis[2]} ${post["Laughs"]}`;
-            analytics_container.appendChild(laughs_text);
+            reactions_row.appendChild(laughs_text);
 
             var surprises_text = document.createElement("p");
             surprises_text.textContent = `${reaction_emojis[3]} ${post["Surprises"]}`;
-            analytics_container.appendChild(surprises_text);
+            reactions_row.appendChild(surprises_text);
 
             var sads_text = document.createElement("p");
             sads_text.textContent = `${reaction_emojis[4]} ${post["Sads"]}`;
-            analytics_container.appendChild(sads_text);
+            reactions_row.appendChild(sads_text);
 
             var angrys_text = document.createElement("p");
             angrys_text.textContent = `${reaction_emojis[5]} ${post["Angrys"]}`;
-            analytics_container.appendChild(angrys_text);
+            reactions_row.appendChild(angrys_text);
 
             var fire_text = document.createElement("p");
             fire_text.textContent = `${reaction_emojis[6]} ${post["Fire"]}`;
-            analytics_container.appendChild(fire_text);
+            reactions_row.appendChild(fire_text);
 
             var computers_text = document.createElement("p");
             computers_text.textContent = `${reaction_emojis[7]} ${post["Computers"]}`;
-            analytics_container.appendChild(computers_text);
+            reactions_row.appendChild(computers_text);
 
             var avg_view_duration_text = document.createElement("p");
             avg_view_duration_text.textContent = `Avg View Duration: ${post["avg_view_duration"]} seconds`;
             analytics_container.appendChild(avg_view_duration_text);
 
             var stars_text = document.createElement("p");
-            stars_text.textContent = `Stars: ${post["Stars"]}`;
+            var stars = post["Stars"];
+            if (stars < 1){
+                stars = 1;
+            }
+            else if (stars > 5){
+                stars = 5;
+            }
+            stars = stars.toFixed(1);
+            stars_text.textContent = `Stars: ${stars}`;
             analytics_container.appendChild(stars_text);
 
         });
     }
-
-
-
 
     #analytics_tracker_onview(post_id){
         

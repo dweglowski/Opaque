@@ -6,8 +6,9 @@ import time
 import re
 import uuid
 
-from Datastructures import Trie, Graph
+from Datastructures import Trie, Graph, HashMap
 from Crypotography import CrypotgraphyController
+from Algorithms import merge_sort
 
 # Define custom type hints
 from ServerUtils import TYPE_POST, TYPE_POSTS
@@ -27,6 +28,7 @@ class ServerController:
 
         # storage for information about each session such as auth state and username etc.
         self.__uuid_session_storage : typing.Dict[str, typing.Dict[str, str | float | int | bool ]] = {}
+        self.__uuids_active : HashMap = HashMap() 
 
         # storage for users subscribed to posts feed and their "send post to client" callback
         self.__post_feed_subscribers : typing.Dict[str, typing.Callable[[TYPE_POST], None]] = {}
@@ -118,6 +120,7 @@ class ServerController:
         # load basic start info about user
         self.__uuid_session_storage[uuid]["username"] = "#anonymous_user"
         self.__uuid_session_storage[uuid]["time connected"] = time.time()
+        self.__uuids_active.set(uuid, True)
 
     def remove_connected_user(self, uuid : str) -> None:
         """Called when a client disconnects, clears associated session."""
@@ -128,6 +131,8 @@ class ServerController:
             self.__post_feed_subscribers.pop(uuid)
         if uuid in self.__messages_feed_subscribers:
             self.__messages_feed_subscribers.pop(uuid)
+
+        self.__uuids_active.set(uuid, False)
 
         print(self.__active_connection_uuids,self.__uuid_session_storage)
 
@@ -528,7 +533,7 @@ class ServerController:
                 if message_time > most_recent_per_conversation.get(user_with, 0.0):
                     most_recent_per_conversation[user_with] = message_time
 
-        most_recent_conversations = sorted(most_recent_per_conversation.keys(), key = most_recent_per_conversation.get, reverse=True)
+        most_recent_conversations = merge_sort(list(most_recent_per_conversation.keys()), key = most_recent_per_conversation.get)[::-1]
 
         return most_recent_conversations 
 

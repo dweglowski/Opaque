@@ -10,8 +10,9 @@ def linear_search(data : typing.List[typing.Any], target : typing.Any) -> typing
             matches.append(item)
     return matches
 
-def merge_sort(data : typing.List[typing.Any]) -> typing.List[typing.Any]:
-    """Sorts data using the recursive merge sort algorithm."""
+def merge_sort(data : typing.List[typing.Any], key: typing.Callable[[typing.Any], typing.Any] = lambda x: x) -> typing.List[typing.Any]:
+    """Sorts data using the recursive merge sort algorithm.
+    Calls key function on each item to determine its value for sorting."""
     
     # base case
     if len(data) <= 1:
@@ -30,7 +31,7 @@ def merge_sort(data : typing.List[typing.Any]) -> typing.List[typing.Any]:
         left_value : any = left_sorted[0]
         right_value : any = right_sorted[0]
 
-        if left_value <= right_value:
+        if key(left_value) <= key(right_value):
             sorted_data.append(left_value)
             left_sorted.pop(0)
         else:

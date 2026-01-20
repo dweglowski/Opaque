@@ -411,7 +411,7 @@ class HashMap:
         """Converts a key into an address in the array"""
         return hash(key) % self.__capacity
     
-    def add(self, key: typing.Any, value: typing.Any) -> None:
+    def set(self, key: typing.Any, value: typing.Any) -> None:
         """Adds a key value pair to the hashmap."""
         address : int = self.__hash_key(key)
 
@@ -427,7 +427,7 @@ class HashMap:
         self.__array[address] = (key, value)
 
     def get(self, key: typing.Any) -> typing.Any:
-        """Retirieves a value from the hashmap using the key."""
+        """Retrieves a value from the hashmap using the key."""
         # find the address the key is stored at
         address : int = self.__hash_key(key)
 

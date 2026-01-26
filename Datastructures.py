@@ -408,8 +408,20 @@ class HashMap:
         self.__array : typing.List[typing.Tuple[typing.Any, typing.Any]] = [None] * self.__capacity
     
     def __hash_key(self, key: typing.Any) -> int:
-        """Converts a key into an address in the array"""
-        return hash(key) % self.__capacity
+        """Converts a key into an address in the array.
+        Uses simple polynomial rolling hash, sufficient for hashmap"""
+        hash : int = 0
+        n : int = len(key)
+        p: int = 31
+        m: int = 1e9 + 9
+        m = int(m)
+        p_pow : int = 1
+
+        for i in range(n):
+            hash = (hash + ord(key[i]) * p_pow) % m
+            p_pow = (p_pow * p) % m
+
+        return hash % self.__capacity
     
     def set(self, key: typing.Any, value: typing.Any) -> None:
         """Adds a key value pair to the hashmap."""

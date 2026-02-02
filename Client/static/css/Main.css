@@ -968,13 +968,13 @@ body, html {
 #Chat {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    overflow-y: scroll;
     background: #020617;
 }
 
 #ChatMessagesContainer {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: scroll;
     padding: 1.2rem;
 
     display: flex;

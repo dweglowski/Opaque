@@ -367,7 +367,10 @@ class ServerController:
             star_scores : typing.Dict[str, float] = {}
             for post in posts:
                 postid : str = post["id"]
-                star_score : float = self.get_analytics_data_for_post(postid).get("star_score", 0.0)
+                try:
+                    star_score : float = self.get_analytics_data_for_post(postid).get("star_score", 0.0)
+                except IndexError:
+                    star_score = 0.0
                 star_scores[postid] = star_score
 
             return sorted(posts, key = lambda post: star_scores[post["id"]], reverse=True)

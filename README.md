@@ -123,4 +123,4 @@ Opaque was designed and developed by me during Sixth Form as part of my A-Level 
 
 ## License
 Copyright (c) Daniel Weglowski.<br>
-Licensed under the MIT license
+Licensed under the [MIT](LICENSE.md) license
